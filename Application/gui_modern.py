@@ -77,6 +77,7 @@ class ModernTradingGUI:
         self.callback_server = None
         self.instruments_cache = None  # Cache for instruments list
         self.instruments_cache_time = None  # When cache was created
+        self.rsi_monitor_running = False  # Track RSI monitor state
         
         # Data storage for charts
         self.portfolio_data = {
@@ -320,7 +321,9 @@ class ModernTradingGUI:
                         dpg.add_separator()
                         dpg.add_input_text(label="Symbol (e.g. NSE:RELIANCE)", tag="rsi_symbol", default_value="NSE:RELIANCE", width=300)
                         dpg.add_combo(label="Interval", tag="rsi_interval", items=["1hour"], default_value="1hour", width=120)
-                        dpg.add_button(label="Launch RSI Monitor", callback=self.launch_rsi_monitor)
+                        with dpg.group(horizontal=True):
+                            dpg.add_button(label="Launch RSI Monitor", tag="rsi_start_btn", callback=self.launch_rsi_monitor)
+                            dpg.add_button(label="Stop Monitor", tag="rsi_stop_btn", callback=self.stop_rsi_monitor, show=False)
                         dpg.add_spacer(height=10)
                         dpg.add_text("Current RSI: --", tag="rsi_current_value", color=(200,200,255))
                         dpg.add_text("Last Alert: --", tag="rsi_last_alert", color=(255,200,100))
@@ -1014,6 +1017,16 @@ Capital Required: Rs.{capital_required:,.2f}
         """Start live RSI monitoring for selected symbol and interval"""
         symbol = dpg.get_value("rsi_symbol")
         interval = dpg.get_value("rsi_interval")
+        
+        if self.rsi_monitor_running:
+            dpg.set_value("rsi_status", "Monitor already running. Stop it first.")
+            dpg.configure_item("rsi_status", color=(255,200,0))
+            return
+        
+        self.rsi_monitor_running = True
+        dpg.configure_item("rsi_start_btn", show=False)
+        dpg.configure_item("rsi_stop_btn", show=True)
+        
         dpg.set_value("rsi_status", f"Launching RSI monitor for {symbol} ({interval})...")
         dpg.configure_item("rsi_status", color=(100,200,255))
         
@@ -1036,7 +1049,11 @@ Capital Required: Rs.{capital_required:,.2f}
                 period = 14
                 last_alert = "--"
                 
-                while True:
+                while self.rsi_monitor_running:
+                    # Check if monitoring was stopped
+                    if not self.rsi_monitor_running:
+                        break
+                    
                     # Resolve instrument token
                     instrument_token = self._resolve_instrument_token(symbol)
                     if not instrument_token:
@@ -1098,14 +1115,6 @@ Capital Required: Rs.{capital_required:,.2f}
                     rsi = 100 - (100 / (1 + rs))
                     current_rsi = float(rsi.iloc[-1])
                     
-                    # Debug: print candle count and last few RSI values
-                    print(f"[DEBUG] Total candles: {len(df)}")
-                    print(f"[DEBUG] Last candle time: {df.iloc[-1]['date']}")
-                    print(f"[DEBUG] Last 3 close prices: {close.tail(3).tolist()}")
-                    print(f"[DEBUG] Last 5 RSI values: {rsi.tail(5).tolist()}")
-                    print(f"[DEBUG] Current RSI: {current_rsi:.2f}")
-                    print(f"[DEBUG] Expected RSI from Zerodha: 36.33")
-                    
                     dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
                     
                     # Alert logic
@@ -1128,8 +1137,21 @@ Capital Required: Rs.{capital_required:,.2f}
             except Exception as e:
                 dpg.set_value("rsi_status", f"Error: {str(e)}")
                 dpg.configure_item("rsi_status", color=(255,100,100))
+            finally:
+                # Reset state when monitoring stops
+                self.rsi_monitor_running = False
+                dpg.configure_item("rsi_start_btn", show=True)
+                dpg.configure_item("rsi_stop_btn", show=False)
         
         threading.Thread(target=rsi_worker, daemon=True).start()
+    
+    def stop_rsi_monitor(self):
+        """Stop the RSI monitoring"""
+        self.rsi_monitor_running = False
+        dpg.set_value("rsi_status", "Monitor stopped")
+        dpg.configure_item("rsi_status", color=(255,150,0))
+        dpg.configure_item("rsi_start_btn", show=True)
+        dpg.configure_item("rsi_stop_btn", show=False)
     
     def _play_alert_sound(self):
         """Play alert sound (cross-platform)"""
