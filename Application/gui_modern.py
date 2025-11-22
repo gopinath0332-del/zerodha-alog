@@ -96,8 +96,8 @@ class ModernTradingGUI:
                 dpg.add_text("Status:", color=(150, 150, 150))
                 dpg.add_text("Not Authenticated", tag="status_text", color=(255, 100, 100))
                 dpg.add_spacer(width=20)
-                dpg.add_button(label="🔐 Authenticate", callback=self.show_auth_dialog)
-                dpg.add_button(label="🔄 Refresh", callback=self.refresh_view)
+                dpg.add_button(label="Authenticate", callback=self.show_auth_dialog)
+                dpg.add_button(label="Refresh", callback=self.refresh_view)
             
             dpg.add_separator()
             
@@ -105,19 +105,19 @@ class ModernTradingGUI:
             with dpg.tab_bar(tag="main_tabs"):
                 
                 # Dashboard Tab
-                with dpg.tab(label="📊 Dashboard"):
+                with dpg.tab(label="Dashboard"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("Welcome to Trading Terminal", tag="dashboard_title")
                         dpg.add_separator()
                         dpg.add_text("", tag="dashboard_content", wrap=800)
                 
                 # Portfolio Tab
-                with dpg.tab(label="💼 Portfolio"):
+                with dpg.tab(label="Portfolio"):
                     with dpg.child_window(height=-1):
                         self.setup_portfolio_view()
                 
                 # Positions Tab
-                with dpg.tab(label="📈 Positions"):
+                with dpg.tab(label="Positions"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("Current Positions", tag="positions_title")
                         dpg.add_separator()
@@ -132,20 +132,20 @@ class ModernTradingGUI:
                             dpg.add_table_column(label="P&L")
                 
                 # Margins Tab
-                with dpg.tab(label="💰 Margins"):
+                with dpg.tab(label="Margins"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("Account Margins", tag="margins_title")
                         dpg.add_separator()
                         
                         with dpg.group(horizontal=True):
-                            dpg.add_button(label="🔄 Refresh Margins", callback=self.refresh_margins)
+                            dpg.add_button(label="Refresh Margins", callback=self.refresh_margins)
                             dpg.add_spacer(width=20)
                             dpg.add_text("Last updated: --", tag="margins_last_update", color=(150, 150, 150))
                         
                         dpg.add_separator()
                         
                         # Equity Margins
-                        with dpg.collapsing_header(label="📊 Equity", default_open=True):
+                        with dpg.collapsing_header(label="Equity", default_open=True):
                             with dpg.table(header_row=True, resizable=True, 
                                          borders_innerH=True, borders_innerV=True,
                                          borders_outerH=True, borders_outerV=True):
@@ -154,24 +154,24 @@ class ModernTradingGUI:
                                 
                                 with dpg.table_row():
                                     dpg.add_text("Available Cash")
-                                    dpg.add_text("₹0.00", tag="equity_available_cash", color=(100, 255, 100))
+                                    dpg.add_text("Rs.0.00", tag="equity_available_cash", color=(100, 255, 100))
                                 
                                 with dpg.table_row():
                                     dpg.add_text("Available Margin")
-                                    dpg.add_text("₹0.00", tag="equity_available", color=(100, 200, 255))
+                                    dpg.add_text("Rs.0.00", tag="equity_available", color=(100, 200, 255))
                                 
                                 with dpg.table_row():
                                     dpg.add_text("Used Margin")
-                                    dpg.add_text("₹0.00", tag="equity_used", color=(255, 200, 100))
+                                    dpg.add_text("Rs.0.00", tag="equity_used", color=(255, 200, 100))
                                 
                                 with dpg.table_row():
                                     dpg.add_text("Collateral")
-                                    dpg.add_text("₹0.00", tag="equity_collateral")
+                                    dpg.add_text("Rs.0.00", tag="equity_collateral")
                         
                         dpg.add_spacer(height=10)
                         
                         # Commodity Margins
-                        with dpg.collapsing_header(label="🌾 Commodity", default_open=True):
+                        with dpg.collapsing_header(label="Commodity", default_open=True):
                             with dpg.table(header_row=True, resizable=True,
                                          borders_innerH=True, borders_innerV=True,
                                          borders_outerH=True, borders_outerV=True):
@@ -180,22 +180,22 @@ class ModernTradingGUI:
                                 
                                 with dpg.table_row():
                                     dpg.add_text("Available Cash")
-                                    dpg.add_text("₹0.00", tag="commodity_available_cash", color=(100, 255, 100))
+                                    dpg.add_text("Rs.0.00", tag="commodity_available_cash", color=(100, 255, 100))
                                 
                                 with dpg.table_row():
                                     dpg.add_text("Available Margin")
-                                    dpg.add_text("₹0.00", tag="commodity_available", color=(100, 200, 255))
+                                    dpg.add_text("Rs.0.00", tag="commodity_available", color=(100, 200, 255))
                                 
                                 with dpg.table_row():
                                     dpg.add_text("Used Margin")
-                                    dpg.add_text("₹0.00", tag="commodity_used", color=(255, 200, 100))
+                                    dpg.add_text("Rs.0.00", tag="commodity_used", color=(255, 200, 100))
                                 
                                 with dpg.table_row():
                                     dpg.add_text("Collateral")
-                                    dpg.add_text("₹0.00", tag="commodity_collateral")
+                                    dpg.add_text("Rs.0.00", tag="commodity_collateral")
                 
                 # Holdings Tab
-                with dpg.tab(label="🏢 Holdings"):
+                with dpg.tab(label="Holdings"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("Holdings", tag="holdings_title")
                         dpg.add_separator()
@@ -212,13 +212,13 @@ class ModernTradingGUI:
                             dpg.add_table_column(label="P&L")
                 
                 # Orders Tab
-                with dpg.tab(label="📋 Orders"):
+                with dpg.tab(label="Orders"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("Order History", tag="orders_title")
                         dpg.add_separator()
                         with dpg.group(horizontal=True):
-                            dpg.add_button(label="🎯 Place Order", callback=self.show_place_order_dialog)
-                            dpg.add_button(label="⚡ Bracket Order", callback=self.show_bracket_order_dialog)
+                            dpg.add_button(label="Place Order", callback=self.show_place_order_dialog)
+                            dpg.add_button(label="Bracket Order", callback=self.show_bracket_order_dialog)
                         dpg.add_separator()
                         with dpg.table(tag="orders_table", header_row=True,
                                       resizable=True, borders_innerH=True,
@@ -232,7 +232,7 @@ class ModernTradingGUI:
                             dpg.add_table_column(label="Status")
                 
                 # Market Data Tab
-                with dpg.tab(label="📉 Market"):
+                with dpg.tab(label="Market"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("Market Data", tag="market_title")
                         dpg.add_separator()
@@ -246,23 +246,23 @@ class ModernTradingGUI:
                         dpg.add_text("", tag="market_data_display", wrap=800)
                 
                 # Tools Tab
-                with dpg.tab(label="🛠️ Tools"):
+                with dpg.tab(label="Tools"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("Trading Tools", tag="tools_title")
                         dpg.add_separator()
                         
                         with dpg.collapsing_header(label="Position Size Calculator", default_open=True):
-                            dpg.add_input_float(label="Account Size (₹)", tag="calc_account", default_value=100000)
+                            dpg.add_input_float(label="Account Size (Rs.)", tag="calc_account", default_value=100000)
                             dpg.add_input_float(label="Risk % per trade", tag="calc_risk", default_value=1.0)
-                            dpg.add_input_float(label="Entry Price (₹)", tag="calc_entry", default_value=0)
-                            dpg.add_input_float(label="Stop Loss (₹)", tag="calc_sl", default_value=0)
+                            dpg.add_input_float(label="Entry Price (Rs.)", tag="calc_entry", default_value=0)
+                            dpg.add_input_float(label="Stop Loss (Rs.)", tag="calc_sl", default_value=0)
                             dpg.add_button(label="Calculate", callback=self.calculate_position_size)
                             dpg.add_text("", tag="calc_result", wrap=600)
                         
                         dpg.add_separator()
                         
                         with dpg.collapsing_header(label="Export Data"):
-                            dpg.add_button(label="💾 Export Portfolio", callback=self.export_portfolio)
+                            dpg.add_button(label="Export Portfolio", callback=self.export_portfolio)
                             dpg.add_text("", tag="export_status")
         
         # Don't call show_welcome here - it will be called after viewport is shown
@@ -277,26 +277,26 @@ class ModernTradingGUI:
             with dpg.group(horizontal=True):
                 with dpg.child_window(width=300, height=120):
                     dpg.add_text("Available Margin", color=(150, 150, 150))
-                    dpg.add_text("₹0.00", tag="margin_available", color=(100, 200, 100))
+                    dpg.add_text("Rs.0.00", tag="margin_available", color=(100, 200, 100))
                 
                 dpg.add_spacer(width=20)
                 
                 with dpg.child_window(width=300, height=120):
                     dpg.add_text("Total P&L", color=(150, 150, 150))
-                    dpg.add_text("₹0.00", tag="pnl_total", color=(100, 200, 100))
+                    dpg.add_text("Rs.0.00", tag="pnl_total", color=(100, 200, 100))
             
             dpg.add_spacer(height=10)
             
             with dpg.group(horizontal=True):
                 with dpg.child_window(width=300, height=120):
                     dpg.add_text("Day Positions P&L", color=(150, 150, 150))
-                    dpg.add_text("₹0.00", tag="pnl_day", color=(100, 200, 100))
+                    dpg.add_text("Rs.0.00", tag="pnl_day", color=(100, 200, 100))
                 
                 dpg.add_spacer(width=20)
                 
                 with dpg.child_window(width=300, height=120):
                     dpg.add_text("Holdings P&L", color=(150, 150, 150))
-                    dpg.add_text("₹0.00", tag="pnl_holdings", color=(100, 200, 100))
+                    dpg.add_text("Rs.0.00", tag="pnl_holdings", color=(100, 200, 100))
         
         dpg.add_separator()
         
@@ -304,7 +304,7 @@ class ModernTradingGUI:
         with dpg.plot(label="Portfolio Performance", height=300, width=-1, tag="portfolio_chart"):
             dpg.add_plot_legend()
             dpg.add_plot_axis(dpg.mvXAxis, label="", tag="portfolio_x_axis")
-            dpg.add_plot_axis(dpg.mvYAxis, label="P&L (₹)", tag="portfolio_y_axis")
+            dpg.add_plot_axis(dpg.mvYAxis, label="P&L (Rs.)", tag="portfolio_y_axis")
     
     def authenticate(self):
         """Try to authenticate with existing token"""
@@ -312,10 +312,10 @@ class ModernTradingGUI:
             self.update_status("Authenticating...", (255, 200, 0))
             self.trader = KiteTrader()
             self.is_authenticated = True
-            self.update_status("Authenticated ✓", (100, 255, 100))
+            self.update_status("Authenticated", (100, 255, 100))
         except Exception as e:
             self.is_authenticated = False
-            self.update_status("Not Authenticated ✗", (255, 100, 100))
+            self.update_status("Not Authenticated", (255, 100, 100))
     
     def update_status(self, text, color=(255, 255, 255)):
         """Update status bar text"""
@@ -329,24 +329,24 @@ class ModernTradingGUI:
 
 This modern interface provides:
 
-📊 Real-time Portfolio Monitoring
-   • Live P&L tracking
-   • Margin analysis
-   • Performance charts
+Real-time Portfolio Monitoring
+   - Live P&L tracking
+   - Margin analysis
+   - Performance charts
 
-📈 Trading Operations
-   • Place market and limit orders
-   • Create bracket orders with SL/Target
-   • View and manage order history
+Trading Operations
+   - Place market and limit orders
+   - Create bracket orders with SL/Target
+   - View and manage order history
 
-📉 Market Analysis
-   • Real-time market data
-   • Multiple symbol quotes
-   • Position sizing calculator
+Market Analysis
+   - Real-time market data
+   - Multiple symbol quotes
+   - Position sizing calculator
 
-💾 Data Management
-   • Export portfolio to CSV
-   • Track trading history
+Data Management
+   - Export portfolio to CSV
+   - Track trading history
 
 Select a tab above to get started!
 """
@@ -358,7 +358,7 @@ Select a tab above to get started!
         if dpg.does_item_exist("auth_window"):
             dpg.delete_item("auth_window")
         
-        with dpg.window(label="🔐 Zerodha Authentication", modal=True, 
+        with dpg.window(label="Zerodha Authentication", modal=True, 
                        tag="auth_window", width=700, height=600):
             dpg.add_text("Authentication Steps", color=(100, 200, 255))
             dpg.add_separator()
@@ -404,10 +404,10 @@ STEP 4: Paste token below and click Authenticate
             login_url = kite.login_url()
             webbrowser.open(login_url)
             
-            dpg.set_value("auth_status", "✓ Login page opened. Complete login and copy request_token.")
+            dpg.set_value("auth_status", "Login page opened. Complete login and copy request_token.")
             dpg.configure_item("auth_status", color=(100, 255, 100))
         except Exception as e:
-            dpg.set_value("auth_status", f"✗ Error: {str(e)}")
+            dpg.set_value("auth_status", f"Error: {str(e)}")
             dpg.configure_item("auth_status", color=(255, 100, 100))
     
     def do_authenticate(self):
@@ -440,9 +440,9 @@ STEP 4: Paste token below and click Authenticate
                 self.trader.kite = kite
                 self.is_authenticated = True
                 
-                self.update_status("Authenticated ✓", (100, 255, 100))
+                self.update_status("Authenticated", (100, 255, 100))
                 
-                result_text = f"""✓ Authentication Successful!
+                result_text = f"""Authentication Successful!
 
 User ID: {data.get('user_id')}
 User Name: {data.get('user_name')}
@@ -453,7 +453,7 @@ Token saved. You can now start trading!"""
                 dpg.configure_item("auth_result", color=(100, 255, 100))
                 
             except Exception as e:
-                dpg.set_value("auth_result", f"✗ Authentication Failed!\n\n{str(e)}\n\nTry getting a fresh token.")
+                dpg.set_value("auth_result", f"Authentication Failed!\n\n{str(e)}\n\nTry getting a fresh token.")
                 dpg.configure_item("auth_result", color=(255, 100, 100))
         
         threading.Thread(target=auth_thread, daemon=True).start()
@@ -513,30 +513,30 @@ Token saved. You can now start trading!"""
                 # Update equity margins
                 if dpg.does_item_exist("equity_available_cash"):
                     dpg.set_value("equity_available_cash", 
-                                f"₹{equity_margins.get('available', {}).get('cash', 0):,.2f}")
+                                f"Rs.{equity_margins.get('available', {}).get('cash', 0):,.2f}")
                 if dpg.does_item_exist("equity_available"):
                     dpg.set_value("equity_available", 
-                                f"₹{equity_margins.get('available', {}).get('live_balance', 0):,.2f}")
+                                f"Rs.{equity_margins.get('available', {}).get('live_balance', 0):,.2f}")
                 if dpg.does_item_exist("equity_used"):
                     dpg.set_value("equity_used", 
-                                f"₹{equity_margins.get('utilised', {}).get('debits', 0):,.2f}")
+                                f"Rs.{equity_margins.get('utilised', {}).get('debits', 0):,.2f}")
                 if dpg.does_item_exist("equity_collateral"):
                     dpg.set_value("equity_collateral", 
-                                f"₹{equity_margins.get('available', {}).get('collateral', 0):,.2f}")
+                                f"Rs.{equity_margins.get('available', {}).get('collateral', 0):,.2f}")
                 
                 # Update commodity margins
                 if dpg.does_item_exist("commodity_available_cash"):
                     dpg.set_value("commodity_available_cash", 
-                                f"₹{commodity_margins.get('available', {}).get('cash', 0):,.2f}")
+                                f"Rs.{commodity_margins.get('available', {}).get('cash', 0):,.2f}")
                 if dpg.does_item_exist("commodity_available"):
                     dpg.set_value("commodity_available", 
-                                f"₹{commodity_margins.get('available', {}).get('live_balance', 0):,.2f}")
+                                f"Rs.{commodity_margins.get('available', {}).get('live_balance', 0):,.2f}")
                 if dpg.does_item_exist("commodity_used"):
                     dpg.set_value("commodity_used", 
-                                f"₹{commodity_margins.get('utilised', {}).get('debits', 0):,.2f}")
+                                f"Rs.{commodity_margins.get('utilised', {}).get('debits', 0):,.2f}")
                 if dpg.does_item_exist("commodity_collateral"):
                     dpg.set_value("commodity_collateral", 
-                                f"₹{commodity_margins.get('available', {}).get('collateral', 0):,.2f}")
+                                f"Rs.{commodity_margins.get('available', {}).get('collateral', 0):,.2f}")
                 
                 # Update timestamp
                 if dpg.does_item_exist("margins_last_update"):
@@ -564,10 +564,10 @@ Token saved. You can now start trading!"""
                 summary = get_portfolio_summary(self.trader)
                 
                 # Update metrics
-                dpg.set_value("margin_available", f"₹{summary['available_margin']:,.2f}")
-                dpg.set_value("pnl_total", f"₹{summary['total_pnl']:,.2f}")
-                dpg.set_value("pnl_day", f"₹{summary['day_positions_pnl']:,.2f}")
-                dpg.set_value("pnl_holdings", f"₹{summary['holdings_pnl']:,.2f}")
+                dpg.set_value("margin_available", f"Rs.{summary['available_margin']:,.2f}")
+                dpg.set_value("pnl_total", f"Rs.{summary['total_pnl']:,.2f}")
+                dpg.set_value("pnl_day", f"Rs.{summary['day_positions_pnl']:,.2f}")
+                dpg.set_value("pnl_holdings", f"Rs.{summary['holdings_pnl']:,.2f}")
                 
                 # Set colors based on P&L
                 color_total = (100, 255, 100) if summary['total_pnl'] >= 0 else (255, 100, 100)
@@ -605,10 +605,10 @@ Token saved. You can now start trading!"""
                     with dpg.table_row(parent="positions_table"):
                         dpg.add_text(p['tradingsymbol'])
                         dpg.add_text(f"{p['quantity']:,}")
-                        dpg.add_text(f"₹{p['average_price']:.2f}")
-                        dpg.add_text(f"₹{p['last_price']:.2f}")
+                        dpg.add_text(f"Rs.{p['average_price']:.2f}")
+                        dpg.add_text(f"Rs.{p['last_price']:.2f}")
                         pnl_color = (100, 255, 100) if p['pnl'] >= 0 else (255, 100, 100)
-                        dpg.add_text(f"₹{p['pnl']:.2f}", color=pnl_color)
+                        dpg.add_text(f"Rs.{p['pnl']:.2f}", color=pnl_color)
                 
             except Exception as e:
                 print(f"Error loading positions: {e}")
@@ -639,12 +639,12 @@ Token saved. You can now start trading!"""
                     with dpg.table_row(parent="holdings_table"):
                         dpg.add_text(h['tradingsymbol'])
                         dpg.add_text(f"{h['quantity']:,}")
-                        dpg.add_text(f"₹{h['average_price']:.2f}")
-                        dpg.add_text(f"₹{h['last_price']:.2f}")
-                        dpg.add_text(f"₹{investment:,.2f}")
-                        dpg.add_text(f"₹{current_value:,.2f}")
+                        dpg.add_text(f"Rs.{h['average_price']:.2f}")
+                        dpg.add_text(f"Rs.{h['last_price']:.2f}")
+                        dpg.add_text(f"Rs.{investment:,.2f}")
+                        dpg.add_text(f"Rs.{current_value:,.2f}")
                         pnl_color = (100, 255, 100) if h['pnl'] >= 0 else (255, 100, 100)
-                        dpg.add_text(f"₹{h['pnl']:.2f}", color=pnl_color)
+                        dpg.add_text(f"Rs.{h['pnl']:.2f}", color=pnl_color)
                 
             except Exception as e:
                 print(f"Error loading holdings: {e}")
@@ -674,7 +674,7 @@ Token saved. You can now start trading!"""
                         dpg.add_text(order['tradingsymbol'])
                         dpg.add_text(f"{order['transaction_type']} {order['order_type']}")
                         dpg.add_text(f"{order['quantity']}")
-                        dpg.add_text(f"₹{order.get('price', 0):.2f}")
+                        dpg.add_text(f"Rs.{order.get('price', 0):.2f}")
                         dpg.add_text(order['status'])
                 
             except Exception as e:
@@ -700,7 +700,7 @@ Token saved. You can now start trading!"""
                 
                 for symbol, data in quotes.items():
                     output += f"{symbol}\n"
-                    output += f"  LTP: ₹{data['last_price']:.2f}\n"
+                    output += f"  LTP: Rs.{data['last_price']:.2f}\n"
                     output += f"  Change: {data['net_change']:.2f}\n"
                     output += f"  Volume: {data.get('volume', 0):,}\n"
                     output += f"  OHLC: O:{data['ohlc']['open']:.2f} "
@@ -723,7 +723,7 @@ Token saved. You can now start trading!"""
         if dpg.does_item_exist("order_window"):
             dpg.delete_item("order_window")
         
-        with dpg.window(label="🎯 Place Order", modal=True, tag="order_window",
+        with dpg.window(label="Place Order", modal=True, tag="order_window",
                        width=500, height=500):
             dpg.add_input_text(label="Symbol", tag="order_symbol")
             dpg.add_combo(label="Exchange", items=["NSE", "BSE", "NFO", "MCX"],
@@ -764,11 +764,11 @@ Token saved. You can now start trading!"""
                 product=product
             )
             
-            dpg.set_value("order_result", f"✓ Order placed successfully!\nOrder ID: {order_id}")
+            dpg.set_value("order_result", f"Order placed successfully!\nOrder ID: {order_id}")
             dpg.configure_item("order_result", color=(100, 255, 100))
             
         except Exception as e:
-            dpg.set_value("order_result", f"✗ Error: {str(e)}")
+            dpg.set_value("order_result", f"Error: {str(e)}")
             dpg.configure_item("order_result", color=(255, 100, 100))
     
     def show_bracket_order_dialog(self):
@@ -779,7 +779,7 @@ Token saved. You can now start trading!"""
         if dpg.does_item_exist("bracket_window"):
             dpg.delete_item("bracket_window")
         
-        with dpg.window(label="⚡ Bracket Order", modal=True, tag="bracket_window",
+        with dpg.window(label="Bracket Order", modal=True, tag="bracket_window",
                        width=500, height=500):
             dpg.add_input_text(label="Symbol", tag="bracket_symbol")
             dpg.add_combo(label="Exchange", items=["NSE", "BSE", "NFO"],
@@ -818,11 +818,11 @@ Token saved. You can now start trading!"""
                 target=target
             )
             
-            dpg.set_value("bracket_result", f"✓ Bracket order placed!\nOrder ID: {order_id}")
+            dpg.set_value("bracket_result", f"Bracket order placed!\nOrder ID: {order_id}")
             dpg.configure_item("bracket_result", color=(100, 255, 100))
             
         except Exception as e:
-            dpg.set_value("bracket_result", f"✗ Error: {str(e)}")
+            dpg.set_value("bracket_result", f"Error: {str(e)}")
             dpg.configure_item("bracket_result", color=(255, 100, 100))
     
     def calculate_position_size(self):
@@ -841,16 +841,16 @@ Token saved. You can now start trading!"""
             result = f"""
 Position Size Calculation:
 ========================
-Account Size: ₹{account:,.2f}
+Account Size: Rs.{account:,.2f}
 Risk per Trade: {risk_pct}%
-Risk Amount: ₹{risk_amount:,.2f}
+Risk Amount: Rs.{risk_amount:,.2f}
 
-Entry Price: ₹{entry:.2f}
-Stop Loss: ₹{sl:.2f}
-Risk per Share: ₹{risk_per_share:.2f}
+Entry Price: Rs.{entry:.2f}
+Stop Loss: Rs.{sl:.2f}
+Risk per Share: Rs.{risk_per_share:.2f}
 
-📊 Recommended Position: {position_size} shares
-💰 Capital Required: ₹{capital_required:,.2f}
+Recommended Position: {position_size} shares
+Capital Required: Rs.{capital_required:,.2f}
 """
             dpg.set_value("calc_result", result)
             dpg.configure_item("calc_result", color=(100, 200, 255))
@@ -873,10 +873,10 @@ Risk per Share: ₹{risk_per_share:.2f}
             export_holdings_to_csv(self.trader, holdings_file)
             
             dpg.set_value("export_status", 
-                         f"✓ Exported:\n{positions_file}\n{holdings_file}")
+                         f"Exported:\n{positions_file}\n{holdings_file}")
             dpg.configure_item("export_status", color=(100, 255, 100))
         except Exception as e:
-            dpg.set_value("export_status", f"✗ Error: {str(e)}")
+            dpg.set_value("export_status", f"Error: {str(e)}")
             dpg.configure_item("export_status", color=(255, 100, 100))
     
     def run(self):
