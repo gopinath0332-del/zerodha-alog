@@ -15,7 +15,10 @@ my-trade-py/
 │   └── utils.py           # Utility functions
 │
 ├── Application/           # Main applications
+│   ├── gui_modern.py      # Modern DearPyGui trading terminal
+│   ├── gui.py             # Legacy tkinter GUI
 │   ├── main.py            # Interactive CLI application
+│   ├── authenticate.py    # Authentication script
 │   └── verify_setup.py    # Setup verification script
 │
 ├── Examples/              # Example scripts
@@ -32,9 +35,12 @@ my-trade-py/
 ├── Documentation/         # Documentation
 │   ├── README.md          # Main documentation
 │   ├── QUICKSTART.md      # Quick start guide
-│   └── PROJECT_OVERVIEW.md # Detailed project overview
+│   ├── PROJECT_OVERVIEW.md # Detailed project overview
+│   └── GUI_GUIDE.md       # GUI application guide
 │
-└── launcher.py            # Main launcher script
+├── launcher.py            # CLI launcher script
+├── run_gui_modern.sh      # Modern GUI launcher (DearPyGui)
+└── run_gui.sh             # Legacy GUI launcher (tkinter)
 ```
 
 ## 🚀 Quick Start
@@ -70,19 +76,64 @@ The launcher provides easy access to all features:
 ### Alternative: Direct Commands
 
 ```bash
+# Launch Modern GUI (DearPyGui) - RECOMMENDED
+./run_gui_modern.sh
+
+# Launch Legacy GUI (tkinter)
+./run_gui.sh
+
 # Verify setup
 python3.9 Application/verify_setup.py
 
 # Authenticate (first time or daily)
 python3.9 Application/authenticate.py
 
-# Start trading app
+# Start CLI trading app
 python3.9 Application/main.py
 
 # Run examples
 python3.9 Examples/basic_order.py
 python3.9 Examples/websocket_stream.py
 ```
+
+## 🖥️ Modern Trading Terminal (DearPyGui)
+
+Launch the professional trading interface:
+
+```bash
+./run_gui_modern.sh
+```
+
+**Features:**
+
+- 🎨 **Modern Dark Theme** - Professional trading terminal look
+- ⚡ **GPU-Accelerated** - Smooth, fast rendering
+- 📊 **Real-time Charts** - Portfolio performance visualization
+- 📈 **Live Data Tables** - Positions, holdings, orders
+- 🎯 **Integrated Authentication** - OAuth flow built-in
+- 💼 **Portfolio Dashboard** - Complete P&L overview
+- 🛠️ **Trading Tools** - Position sizing calculator
+- 💾 **Data Export** - CSV export functionality
+
+## 🖼️ Classic GUI (tkinter)
+
+Launch the classic interface:
+
+```bash
+./run_gui.sh
+```
+
+The classic GUI provides:
+
+- 📊 Portfolio summary and analysis
+- 📈 Real-time positions and holdings
+- 🎯 Interactive order placement
+- 📉 Market data viewer
+- 🏆 Top gainers/losers
+- 💰 Position sizing calculator
+- 💾 CSV export functionality
+
+See `Documentation/GUI_GUIDE.md` for detailed GUI usage.
 
 ## 📚 Documentation
 
