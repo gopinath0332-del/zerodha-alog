@@ -1036,6 +1036,12 @@ Capital Required: Rs.{capital_required:,.2f}
             from Core_Modules.config import Config
             import pandas as pd
             
+            print(f"\n{'='*60}")
+            print(f"RSI Monitor Started")
+            print(f"Symbol: {symbol} | Interval: {interval}")
+            print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"{'='*60}\n")
+            
             try:
                 # Always reload token from .env before each API call
                 import importlib
@@ -1057,6 +1063,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Resolve instrument token
                     instrument_token = self._resolve_instrument_token(symbol)
                     if not instrument_token:
+                        print(f"[ERROR] Instrument token not found for {symbol}")
                         dpg.set_value("rsi_status", f"Instrument token not found for {symbol}")
                         dpg.configure_item("rsi_status", color=(255,100,100))
                         return
@@ -1070,6 +1077,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     )
                     df = pd.DataFrame(data)
                     if df.empty or 'close' not in df:
+                        print(f"[WARNING] No data received from API")
                         dpg.set_value("rsi_status", "No data found or API error.")
                         dpg.configure_item("rsi_status", color=(255,100,100))
                         time.sleep(60)
@@ -1090,6 +1098,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     
                     # Use at least 100 candles for SMA initialization
                     if len(df) < 100:
+                        print(f"[WARNING] Not enough candles: {len(df)} (need 100+)")
                         dpg.set_value("rsi_status", "Not enough historical candles (need 100+)")
                         dpg.configure_item("rsi_status", color=(255,100,100))
                         return
@@ -1115,16 +1124,27 @@ Capital Required: Rs.{capital_required:,.2f}
                     rsi = 100 - (100 / (1 + rs))
                     current_rsi = float(rsi.iloc[-1])
                     
+                    current_time = datetime.now().strftime('%H:%M:%S')
+                    print(f"[{current_time}] RSI: {current_rsi:.2f} | Last Candle: {df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M')} | Close: {close.iloc[-1]:.2f}")
+                    
                     dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
                     
                     # Alert logic
                     if current_rsi > 70:
                         last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S')}"
+                        print(f"\n{'*'*60}")
+                        print(f"ALERT: RSI OVERBOUGHT! RSI = {current_rsi:.2f} (> 70)")
+                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                        print(f"{'*'*60}\n")
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(255,100,100))
                         self._play_alert_sound()
                     elif current_rsi < 30:
                         last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S')}"
+                        print(f"\n{'*'*60}")
+                        print(f"ALERT: RSI OVERSOLD! RSI = {current_rsi:.2f} (< 30)")
+                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                        print(f"{'*'*60}\n")
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(100,255,100))
                         self._play_alert_sound()
@@ -1135,10 +1155,15 @@ Capital Required: Rs.{capital_required:,.2f}
                     dpg.configure_item("rsi_status", color=(150,150,150))
                     time.sleep(60*5)  # Check every 5 minutes
             except Exception as e:
+                print(f"[ERROR] RSI Monitor Exception: {str(e)}")
                 dpg.set_value("rsi_status", f"Error: {str(e)}")
                 dpg.configure_item("rsi_status", color=(255,100,100))
             finally:
                 # Reset state when monitoring stops
+                print(f"\n{'='*60}")
+                print(f"RSI Monitor Stopped")
+                print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"{'='*60}\n")
                 self.rsi_monitor_running = False
                 dpg.configure_item("rsi_start_btn", show=True)
                 dpg.configure_item("rsi_stop_btn", show=False)
@@ -1147,6 +1172,7 @@ Capital Required: Rs.{capital_required:,.2f}
     
     def stop_rsi_monitor(self):
         """Stop the RSI monitoring"""
+        print(f"[INFO] User requested to stop RSI monitor")
         self.rsi_monitor_running = False
         dpg.set_value("rsi_status", "Monitor stopped")
         dpg.configure_item("rsi_status", color=(255,150,0))
