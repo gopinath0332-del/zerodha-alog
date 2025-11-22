@@ -131,6 +131,69 @@ class ModernTradingGUI:
                             dpg.add_table_column(label="LTP")
                             dpg.add_table_column(label="P&L")
                 
+                # Margins Tab
+                with dpg.tab(label="💰 Margins"):
+                    with dpg.child_window(height=-1):
+                        dpg.add_text("Account Margins", tag="margins_title")
+                        dpg.add_separator()
+                        
+                        with dpg.group(horizontal=True):
+                            dpg.add_button(label="🔄 Refresh Margins", callback=self.refresh_margins)
+                            dpg.add_spacer(width=20)
+                            dpg.add_text("Last updated: --", tag="margins_last_update", color=(150, 150, 150))
+                        
+                        dpg.add_separator()
+                        
+                        # Equity Margins
+                        with dpg.collapsing_header(label="📊 Equity", default_open=True):
+                            with dpg.table(header_row=True, resizable=True, 
+                                         borders_innerH=True, borders_innerV=True,
+                                         borders_outerH=True, borders_outerV=True):
+                                dpg.add_table_column(label="Metric")
+                                dpg.add_table_column(label="Value")
+                                
+                                with dpg.table_row():
+                                    dpg.add_text("Available Cash")
+                                    dpg.add_text("₹0.00", tag="equity_available_cash", color=(100, 255, 100))
+                                
+                                with dpg.table_row():
+                                    dpg.add_text("Available Margin")
+                                    dpg.add_text("₹0.00", tag="equity_available", color=(100, 200, 255))
+                                
+                                with dpg.table_row():
+                                    dpg.add_text("Used Margin")
+                                    dpg.add_text("₹0.00", tag="equity_used", color=(255, 200, 100))
+                                
+                                with dpg.table_row():
+                                    dpg.add_text("Collateral")
+                                    dpg.add_text("₹0.00", tag="equity_collateral")
+                        
+                        dpg.add_spacer(height=10)
+                        
+                        # Commodity Margins
+                        with dpg.collapsing_header(label="🌾 Commodity", default_open=True):
+                            with dpg.table(header_row=True, resizable=True,
+                                         borders_innerH=True, borders_innerV=True,
+                                         borders_outerH=True, borders_outerV=True):
+                                dpg.add_table_column(label="Metric")
+                                dpg.add_table_column(label="Value")
+                                
+                                with dpg.table_row():
+                                    dpg.add_text("Available Cash")
+                                    dpg.add_text("₹0.00", tag="commodity_available_cash", color=(100, 255, 100))
+                                
+                                with dpg.table_row():
+                                    dpg.add_text("Available Margin")
+                                    dpg.add_text("₹0.00", tag="commodity_available", color=(100, 200, 255))
+                                
+                                with dpg.table_row():
+                                    dpg.add_text("Used Margin")
+                                    dpg.add_text("₹0.00", tag="commodity_used", color=(255, 200, 100))
+                                
+                                with dpg.table_row():
+                                    dpg.add_text("Collateral")
+                                    dpg.add_text("₹0.00", tag="commodity_collateral")
+                
                 # Holdings Tab
                 with dpg.tab(label="🏢 Holdings"):
                     with dpg.child_window(height=-1):
@@ -435,6 +498,58 @@ Token saved. You can now start trading!"""
         
         # Determine which tab is active and refresh accordingly
         self.load_portfolio_data()
+    
+    def refresh_margins(self):
+        """Refresh margin data"""
+        if not self.check_auth():
+            return
+        
+        def load_thread():
+            try:
+                # Get margins for equity and commodity
+                equity_margins = self.trader.kite.margins('equity')
+                commodity_margins = self.trader.kite.margins('commodity')
+                
+                # Update equity margins
+                if dpg.does_item_exist("equity_available_cash"):
+                    dpg.set_value("equity_available_cash", 
+                                f"₹{equity_margins.get('available', {}).get('cash', 0):,.2f}")
+                if dpg.does_item_exist("equity_available"):
+                    dpg.set_value("equity_available", 
+                                f"₹{equity_margins.get('available', {}).get('live_balance', 0):,.2f}")
+                if dpg.does_item_exist("equity_used"):
+                    dpg.set_value("equity_used", 
+                                f"₹{equity_margins.get('utilised', {}).get('debits', 0):,.2f}")
+                if dpg.does_item_exist("equity_collateral"):
+                    dpg.set_value("equity_collateral", 
+                                f"₹{equity_margins.get('available', {}).get('collateral', 0):,.2f}")
+                
+                # Update commodity margins
+                if dpg.does_item_exist("commodity_available_cash"):
+                    dpg.set_value("commodity_available_cash", 
+                                f"₹{commodity_margins.get('available', {}).get('cash', 0):,.2f}")
+                if dpg.does_item_exist("commodity_available"):
+                    dpg.set_value("commodity_available", 
+                                f"₹{commodity_margins.get('available', {}).get('live_balance', 0):,.2f}")
+                if dpg.does_item_exist("commodity_used"):
+                    dpg.set_value("commodity_used", 
+                                f"₹{commodity_margins.get('utilised', {}).get('debits', 0):,.2f}")
+                if dpg.does_item_exist("commodity_collateral"):
+                    dpg.set_value("commodity_collateral", 
+                                f"₹{commodity_margins.get('available', {}).get('collateral', 0):,.2f}")
+                
+                # Update timestamp
+                if dpg.does_item_exist("margins_last_update"):
+                    dpg.set_value("margins_last_update", 
+                                f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
+                
+            except Exception as e:
+                print(f"Error loading margins: {e}")
+                if dpg.does_item_exist("margins_last_update"):
+                    dpg.set_value("margins_last_update", f"Error: {str(e)}")
+                    dpg.configure_item("margins_last_update", color=(255, 100, 100))
+        
+        threading.Thread(target=load_thread, daemon=True).start()
         self.load_positions_data()
         self.load_holdings_data()
         self.load_orders_data()
