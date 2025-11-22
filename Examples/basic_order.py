@@ -71,8 +71,8 @@ def main():
     # Example 7: Get margins
     print("\n=== Example 7: Get Margins ===")
     margins = trader.get_margins('equity')
-    print(f"Available margin: ₹{margins['equity']['available']['live_balance']:.2f}")
-    print(f"Used margin: ₹{margins['equity']['utilised']['debits']:.2f}")
+    print(f"Available margin: ₹{margins['available']['live_balance']:.2f}")
+    print(f"Used margin: ₹{margins['utilised']['debits']:.2f}")
 
 
 if __name__ == "__main__":

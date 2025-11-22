@@ -226,8 +226,8 @@ def get_portfolio_summary(trader):
         total_current_value = sum(h['last_price'] * h['quantity'] for h in holdings)
         
         summary = {
-            'available_margin': margins['equity']['available']['live_balance'],
-            'used_margin': margins['equity']['utilised']['debits'],
+            'available_margin': margins['available']['live_balance'],
+            'used_margin': margins['utilised']['debits'],
             'day_positions_count': len(day_positions),
             'day_positions_pnl': round(total_day_pnl, 2),
             'holdings_count': len(holdings),

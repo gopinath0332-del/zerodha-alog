@@ -70,8 +70,8 @@ def view_portfolio(trader):
     try:
         # Get margins
         margins = trader.get_margins('equity')
-        print(f"\nAvailable Margin: ₹{margins['equity']['available']['live_balance']:,.2f}")
-        print(f"Used Margin: ₹{margins['equity']['utilised']['debits']:,.2f}")
+        print(f"\nAvailable Margin: ₹{margins['available']['live_balance']:,.2f}")
+        print(f"Used Margin: ₹{margins['utilised']['debits']:,.2f}")
         
         # Get positions
         positions = trader.get_positions()
