@@ -15,7 +15,8 @@ my-trade-py/
 │   └── utils.py           # Utility functions
 │
 ├── Application/           # Main applications
-│   ├── gui.py             # GUI trading application
+│   ├── gui_modern.py      # Modern DearPyGui trading terminal
+│   ├── gui.py             # Legacy tkinter GUI
 │   ├── main.py            # Interactive CLI application
 │   ├── authenticate.py    # Authentication script
 │   └── verify_setup.py    # Setup verification script
@@ -38,7 +39,8 @@ my-trade-py/
 │   └── GUI_GUIDE.md       # GUI application guide
 │
 ├── launcher.py            # CLI launcher script
-└── run_gui.sh             # GUI launcher script
+├── run_gui_modern.sh      # Modern GUI launcher (DearPyGui)
+└── run_gui.sh             # Legacy GUI launcher (tkinter)
 ```
 
 ## 🚀 Quick Start
@@ -74,7 +76,10 @@ The launcher provides easy access to all features:
 ### Alternative: Direct Commands
 
 ```bash
-# Launch GUI Application
+# Launch Modern GUI (DearPyGui) - RECOMMENDED
+./run_gui_modern.sh
+
+# Launch Legacy GUI (tkinter)
 ./run_gui.sh
 
 # Verify setup
@@ -91,15 +96,34 @@ python3.9 Examples/basic_order.py
 python3.9 Examples/websocket_stream.py
 ```
 
-## 🖥️ GUI Application
+## 🖥️ Modern Trading Terminal (DearPyGui)
 
-Launch the graphical interface:
+Launch the professional trading interface:
+
+```bash
+./run_gui_modern.sh
+```
+
+**Features:**
+
+- 🎨 **Modern Dark Theme** - Professional trading terminal look
+- ⚡ **GPU-Accelerated** - Smooth, fast rendering
+- 📊 **Real-time Charts** - Portfolio performance visualization
+- 📈 **Live Data Tables** - Positions, holdings, orders
+- 🎯 **Integrated Authentication** - OAuth flow built-in
+- 💼 **Portfolio Dashboard** - Complete P&L overview
+- 🛠️ **Trading Tools** - Position sizing calculator
+- 💾 **Data Export** - CSV export functionality
+
+## 🖼️ Classic GUI (tkinter)
+
+Launch the classic interface:
 
 ```bash
 ./run_gui.sh
 ```
 
-The GUI provides:
+The classic GUI provides:
 
 - 📊 Portfolio summary and analysis
 - 📈 Real-time positions and holdings
