@@ -15,6 +15,8 @@ import dearpygui.dearpygui as dpg
 import threading
 from datetime import datetime
 import webbrowser
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 from Core_Modules.trader import KiteTrader
 from Core_Modules.auth import KiteAuth
 from Core_Modules.utils import (
@@ -24,11 +26,55 @@ from Core_Modules.utils import (
 )
 
 
+# Global variable to store request token from callback
+_request_token_holder = {'token': None}
+
+
+class CallbackHandler(BaseHTTPRequestHandler):
+    """HTTP handler to capture OAuth callback"""
+    
+    def do_GET(self):
+        """Handle GET request from OAuth redirect"""
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        
+        if 'request_token' in params:
+            _request_token_holder['token'] = params['request_token'][0]
+            
+            # Send success response
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            
+            success_html = """
+            <html>
+            <head><title>Authentication Success</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1 style="color: green;">✓ Authentication Successful!</h1>
+                <p>Request token captured. You can close this window.</p>
+                <p>Return to the application to complete authentication.</p>
+            </body>
+            </html>
+            """
+            self.wfile.write(success_html.encode())
+        else:
+            self.send_response(400)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b"<h1>Error: No request token found</h1>")
+    
+    def log_message(self, format, *args):
+        """Suppress log messages"""
+        pass
+
+
 class ModernTradingGUI:
     def __init__(self):
         self.trader = None
         self.is_authenticated = False
         self.current_view = "welcome"
+        self.request_token = None
+        self.callback_server = None
         
         # Data storage for charts
         self.portfolio_data = {
@@ -359,40 +405,105 @@ Select a tab above to get started!
             dpg.delete_item("auth_window")
         
         with dpg.window(label="Zerodha Authentication", modal=True, 
-                       tag="auth_window", width=700, height=600):
-            dpg.add_text("Authentication Steps", color=(100, 200, 255))
+                       tag="auth_window", width=700, height=500):
+            dpg.add_text("Automated Authentication", color=(100, 200, 255))
             dpg.add_separator()
             
             instructions = """
-STEP 1: Click 'Open Login Page' below
-        → Opens Zerodha login in your browser
+AUTOMATED PROCESS:
 
-STEP 2: Login with your Zerodha credentials
-        → Use your User ID, Password, and 2FA
+1. Click 'Start Authentication' below
+   → Starts local callback server
+   → Opens Zerodha login in your browser
 
-STEP 3: After login, copy the request_token from redirect URL
-        → URL format: http://127.0.0.1:5000/callback?request_token=XXXXX
-        → Copy ONLY the token value (after request_token=)
+2. Login with your Zerodha credentials
+   → Use your User ID, Password, and 2FA
 
-STEP 4: Paste token below and click Authenticate
-        → Token expires in 1-2 minutes, use immediately!
+3. Automatic token capture
+   → After login, you'll be redirected back
+   → Token is captured automatically
+   → Authentication completes in the background
+
+No manual copy-paste needed!
 """
             dpg.add_text(instructions, wrap=650)
             dpg.add_separator()
             
-            dpg.add_button(label="🌐 STEP 1: Open Login Page", 
-                          callback=self.open_login_page, width=300)
-            dpg.add_text("", tag="auth_status", wrap=650)
+            dpg.add_button(label="Start Authentication", 
+                          callback=self.start_auto_auth, width=300)
+            dpg.add_text("", tag="auth_status", wrap=650, color=(150, 150, 150))
             
-            dpg.add_spacer(height=10)
+            dpg.add_spacer(height=20)
+            dpg.add_separator()
+            dpg.add_text("Manual Mode (if auto-mode fails):", color=(150, 150, 150))
             dpg.add_input_text(label="Request Token", tag="auth_token", width=500)
-            dpg.add_button(label="🔑 Authenticate", callback=self.do_authenticate, width=300)
+            dpg.add_button(label="Authenticate Manually", callback=self.do_authenticate, width=300)
             
             dpg.add_spacer(height=10)
             dpg.add_text("", tag="auth_result", wrap=650)
             
             dpg.add_separator()
             dpg.add_button(label="Close", callback=lambda: dpg.delete_item("auth_window"))
+    
+    def start_auto_auth(self):
+        """Start automated authentication with callback server"""
+        global _request_token_holder
+        _request_token_holder['token'] = None
+        
+        dpg.set_value("auth_status", "Starting local callback server...")
+        dpg.configure_item("auth_status", color=(255, 200, 0))
+        
+        def auth_process():
+            try:
+                # Start callback server in background
+                server_address = ('127.0.0.1', 8888)
+                httpd = HTTPServer(server_address, CallbackHandler)
+                
+                # Start server in a thread
+                server_thread = threading.Thread(target=httpd.handle_request, daemon=True)
+                server_thread.start()
+                
+                dpg.set_value("auth_status", "Callback server started on http://127.0.0.1:8888\nOpening login page...")
+                
+                # Open login page with callback URL
+                from kiteconnect import KiteConnect
+                from Core_Modules.config import Config
+                
+                kite = KiteConnect(api_key=Config.API_KEY)
+                # Override redirect URL to point to our local server
+                login_url = f"https://kite.zerodha.com/connect/login?api_key={Config.API_KEY}&v=3"
+                webbrowser.open(login_url)
+                
+                dpg.set_value("auth_status", "Login page opened in browser.\nWaiting for authentication...\n\nPlease login with your Zerodha credentials.")
+                dpg.configure_item("auth_status", color=(100, 200, 255))
+                
+                # Wait for token (with timeout)
+                import time
+                timeout = 120  # 2 minutes
+                elapsed = 0
+                while _request_token_holder['token'] is None and elapsed < timeout:
+                    time.sleep(0.5)
+                    elapsed += 0.5
+                
+                if _request_token_holder['token']:
+                    # Token received, complete authentication
+                    dpg.set_value("auth_status", "Token received! Completing authentication...")
+                    dpg.configure_item("auth_status", color=(100, 255, 100))
+                    
+                    # Set the token in the input field
+                    dpg.set_value("auth_token", _request_token_holder['token'])
+                    
+                    # Authenticate automatically
+                    threading.Timer(0.5, self.do_authenticate).start()
+                else:
+                    dpg.set_value("auth_status", "Timeout waiting for authentication.\nPlease try manual mode or restart.")
+                    dpg.configure_item("auth_status", color=(255, 100, 100))
+                
+            except Exception as e:
+                dpg.set_value("auth_status", f"Error: {str(e)}\n\nPlease use manual mode.")
+                dpg.configure_item("auth_status", color=(255, 100, 100))
+        
+        threading.Thread(target=auth_process, daemon=True).start()
     
     def open_login_page(self):
         """Open Zerodha login in browser"""
