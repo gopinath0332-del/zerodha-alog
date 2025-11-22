@@ -17,6 +17,7 @@ from datetime import datetime
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+import requests
 from Core_Modules.trader import KiteTrader
 from Core_Modules.auth import KiteAuth
 from Core_Modules.utils import (
@@ -75,6 +76,12 @@ class ModernTradingGUI:
         self.current_view = "welcome"
         self.request_token = None
         self.callback_server = None
+        self.instruments_cache = None  # Cache for instruments list
+        self.instruments_cache_time = None  # When cache was created
+        self.rsi_monitor_running = False  # Track RSI monitor state
+        self.current_rsi_value = None  # Track current RSI value for alerts
+        self.current_rsi_symbol = None  # Track symbol being monitored
+        self.discord_webhook_url = "https://discord.com/api/webhooks/1435171751305678868/2qh5UiV4VCP3wuZL3IprM9y0YuGHMRxrIn-vPsL5sdjL7j3bV3B6uZxzWzHKjrcHZa0Q"
         
         # Data storage for charts
         self.portfolio_data = {
@@ -310,6 +317,26 @@ class ModernTradingGUI:
                         with dpg.collapsing_header(label="Export Data"):
                             dpg.add_button(label="Export Portfolio", callback=self.export_portfolio)
                             dpg.add_text("", tag="export_status")
+                
+                # RSI Strategy Tab
+                with dpg.tab(label="RSI Strategy"):
+                    with dpg.child_window(height=-1):
+                        dpg.add_text("RSI Live Monitor", tag="rsi_title")
+                        dpg.add_separator()
+                        dpg.add_input_text(label="Symbol (e.g. NSE:RELIANCE)", tag="rsi_symbol", default_value="NSE:RELIANCE", width=300)
+                        dpg.add_combo(label="Interval", tag="rsi_interval", items=["1hour"], default_value="1hour", width=120)
+                        with dpg.group(horizontal=True):
+                            dpg.add_button(label="Launch RSI Monitor", tag="rsi_start_btn", callback=self.launch_rsi_monitor)
+                            dpg.add_button(label="Stop Monitor", tag="rsi_stop_btn", callback=self.stop_rsi_monitor, show=False)
+                        dpg.add_spacer(height=10)
+                        dpg.add_text("Current RSI: --", tag="rsi_current_value", color=(200,200,255))
+                        dpg.add_text("Last Alert: --", tag="rsi_last_alert", color=(255,200,100))
+                        dpg.add_spacer(height=10)
+                        dpg.add_text("Status: Idle", tag="rsi_status", color=(150,150,150))
+                        dpg.add_separator()
+                        dpg.add_text("Alerts: RSI > 70 (Overbought), RSI < 30 (Oversold)", color=(255,255,255))
+                        dpg.add_spacer(height=10)
+                        dpg.add_text("Note: RSI matches Zerodha chart (period=14, close)", color=(150,255,150))
         
         # Don't call show_welcome here - it will be called after viewport is shown
     
@@ -989,6 +1016,267 @@ Capital Required: Rs.{capital_required:,.2f}
         except Exception as e:
             dpg.set_value("export_status", f"Error: {str(e)}")
             dpg.configure_item("export_status", color=(255, 100, 100))
+    
+    def launch_rsi_monitor(self):
+        """Start live RSI monitoring for selected symbol and interval"""
+        symbol = dpg.get_value("rsi_symbol")
+        interval = dpg.get_value("rsi_interval")
+        
+        if self.rsi_monitor_running:
+            dpg.set_value("rsi_status", "Monitor already running. Stop it first.")
+            dpg.configure_item("rsi_status", color=(255,200,0))
+            return
+        
+        self.rsi_monitor_running = True
+        dpg.configure_item("rsi_start_btn", show=False)
+        dpg.configure_item("rsi_stop_btn", show=True)
+        
+        dpg.set_value("rsi_status", f"Launching RSI monitor for {symbol} ({interval})...")
+        dpg.configure_item("rsi_status", color=(100,200,255))
+        
+        def rsi_worker():
+            import time
+            from kiteconnect import KiteConnect
+            from Core_Modules.config import Config
+            import pandas as pd
+            
+            print(f"\n{'='*60}")
+            print(f"RSI Monitor Started")
+            print(f"Symbol: {symbol} | Interval: {interval}")
+            print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"{'='*60}\n")
+            
+            try:
+                # Always reload token from .env before each API call
+                import importlib
+                import Core_Modules.config as config_module
+                importlib.reload(config_module)
+                api_key = config_module.Config.API_KEY
+                access_token = config_module.Config.ACCESS_TOKEN
+                kite = KiteConnect(api_key=api_key)
+                kite.set_access_token(access_token)
+                # Zerodha uses period=14, close price, Wilder's smoothing
+                period = 14
+                last_alert = "--"
+                first_run = True  # Track first iteration to send start alert with RSI
+                
+                while self.rsi_monitor_running:
+                    # Check if monitoring was stopped
+                    if not self.rsi_monitor_running:
+                        break
+                    
+                    # Resolve instrument token
+                    instrument_token = self._resolve_instrument_token(symbol)
+                    if not instrument_token:
+                        error_msg = f"**Symbol:** {symbol}\n**Error:** Instrument token not found\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"[ERROR] Instrument token not found for {symbol}")
+                        dpg.set_value("rsi_status", f"Instrument token not found for {symbol}")
+                        dpg.configure_item("rsi_status", color=(255,100,100))
+                        self._send_discord_alert(error_msg, color=0xFF0000)  # Red
+                        return
+                    
+                    # Fetch last 100+ 1-hour candles (fetch 30 days to ensure 100+ candles)
+                    data = kite.historical_data(
+                        instrument_token=instrument_token,
+                        from_date=(datetime.now()-pd.Timedelta(days=30)).strftime('%Y-%m-%d'),
+                        to_date=datetime.now().strftime('%Y-%m-%d'),
+                        interval="hour"
+                    )
+                    df = pd.DataFrame(data)
+                    if df.empty or 'close' not in df:
+                        error_msg = f"**Symbol:** {symbol}\n**Error:** No data received from API\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"[WARNING] No data received from API")
+                        dpg.set_value("rsi_status", "No data found or API error.")
+                        dpg.configure_item("rsi_status", color=(255,100,100))
+                        self._send_discord_alert(error_msg, color=0xFFA500)  # Orange
+                        time.sleep(60)
+                        continue
+                    
+                    # Ensure timezone is IST and exclude incomplete candle
+                    import pytz
+                    ist = pytz.timezone('Asia/Kolkata')
+                    df['date'] = pd.to_datetime(df['date'])
+                    # Convert to IST (handle both tz-aware and tz-naive)
+                    if df['date'].dt.tz is None:
+                        df['date'] = df['date'].dt.tz_localize('UTC').dt.tz_convert(ist)
+                    else:
+                        df['date'] = df['date'].dt.tz_convert(ist)
+                    
+                    # Don't exclude the last candle - Kite API returns only completed candles
+                    # The last candle in the response is the most recent completed 1-hour candle
+                    
+                    # Use at least 100 candles for SMA initialization
+                    if len(df) < 100:
+                        error_msg = f"**Symbol:** {symbol}\n**Error:** Not enough candles ({len(df)}/100)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"[WARNING] Not enough candles: {len(df)} (need 100+)")
+                        dpg.set_value("rsi_status", "Not enough historical candles (need 100+)")
+                        dpg.configure_item("rsi_status", color=(255,100,100))
+                        self._send_discord_alert(error_msg, color=0xFFA500)  # Orange
+                        return
+                    
+                    close = df['close']
+                    
+                    # Calculate RSI using Wilder's smoothing (exponential moving average)
+                    # This matches Zerodha's RSI calculation
+                    delta = close.diff()
+                    gain = delta.where(delta > 0, 0)
+                    loss = -delta.where(delta < 0, 0)
+                    
+                    # First average is simple mean over period
+                    avg_gain = gain.rolling(window=period, min_periods=period).mean()
+                    avg_loss = loss.rolling(window=period, min_periods=period).mean()
+                    
+                    # Subsequent values use Wilder's smoothing: (previous avg * 13 + current value) / 14
+                    for i in range(period, len(gain)):
+                        avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period - 1) + gain.iloc[i]) / period
+                        avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period - 1) + loss.iloc[i]) / period
+                    
+                    rs = avg_gain / avg_loss
+                    rsi = 100 - (100 / (1 + rs))
+                    current_rsi = float(rsi.iloc[-1])
+                    
+                    # Store current RSI value for stop alerts
+                    self.current_rsi_value = current_rsi
+                    self.current_rsi_symbol = symbol
+                    
+                    current_time = datetime.now().strftime('%H:%M:%S')
+                    print(f"[{current_time}] RSI: {current_rsi:.2f} | Last Candle: {df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M')} | Close: {close.iloc[-1]:.2f}")
+                    
+                    dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
+                    
+                    # Send start alert with initial RSI on first run
+                    if first_run:
+                        start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**RSI:** {current_rsi:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        self._send_discord_alert(start_msg, color=0x3498DB)  # Blue
+                        first_run = False
+                    
+                    # Alert logic
+                    if current_rsi > 70:
+                        last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S')}"
+                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"\n{'*'*60}")
+                        print(f"ALERT: RSI OVERBOUGHT! RSI = {current_rsi:.2f} (> 70)")
+                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                        print(f"{'*'*60}\n")
+                        dpg.set_value("rsi_last_alert", last_alert)
+                        dpg.configure_item("rsi_last_alert", color=(255,100,100))
+                        self._send_discord_alert(alert_msg, color=0xFF5733)  # Red
+                        self._play_alert_sound()
+                    elif current_rsi < 30:
+                        last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S')}"
+                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"\n{'*'*60}")
+                        print(f"ALERT: RSI OVERSOLD! RSI = {current_rsi:.2f} (< 30)")
+                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                        print(f"{'*'*60}\n")
+                        dpg.set_value("rsi_last_alert", last_alert)
+                        dpg.configure_item("rsi_last_alert", color=(100,255,100))
+                        self._send_discord_alert(alert_msg, color=0x33FF57)  # Green
+                        self._play_alert_sound()
+                    else:
+                        dpg.set_value("rsi_last_alert", last_alert)
+                    
+                    dpg.set_value("rsi_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
+                    dpg.configure_item("rsi_status", color=(150,150,150))
+                    time.sleep(60*5)  # Check every 5 minutes
+            except Exception as e:
+                error_msg = f"**Symbol:** {symbol}\n**Error:** {str(e)}\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                print(f"[ERROR] RSI Monitor Exception: {str(e)}")
+                dpg.set_value("rsi_status", f"Error: {str(e)}")
+                dpg.configure_item("rsi_status", color=(255,100,100))
+                self._send_discord_alert(error_msg, color=0xFF0000)  # Red
+            finally:
+                # Reset state when monitoring stops
+                rsi_info = f"\n**RSI:** {self.current_rsi_value:.2f}" if self.current_rsi_value else ""
+                stop_msg = f"**Symbol:** {symbol}{rsi_info}\n**Status:** Monitor Stopped (Thread Exit)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                print(f"\n{'='*60}")
+                print(f"RSI Monitor Stopped")
+                print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"{'='*60}\n")
+                self._send_discord_alert(stop_msg, color=0x808080)  # Gray
+                self.rsi_monitor_running = False
+                dpg.configure_item("rsi_start_btn", show=True)
+                dpg.configure_item("rsi_stop_btn", show=False)
+        
+        threading.Thread(target=rsi_worker, daemon=True).start()
+    
+    def stop_rsi_monitor(self):
+        """Stop the RSI monitoring"""
+        print(f"[INFO] User requested to stop RSI monitor")
+        self.rsi_monitor_running = False
+        
+        # Send Discord alert for manual stop with current RSI
+        symbol_info = f"**Symbol:** {self.current_rsi_symbol}\n" if self.current_rsi_symbol else ""
+        rsi_info = f"**RSI:** {self.current_rsi_value:.2f}\n" if self.current_rsi_value else ""
+        stop_msg = f"{symbol_info}{rsi_info}**Status:** Monitor Stopped (User Request)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        self._send_discord_alert(stop_msg, color=0x808080)  # Gray
+        
+        dpg.set_value("rsi_status", "Monitor stopped")
+        dpg.configure_item("rsi_status", color=(255,150,0))
+        dpg.configure_item("rsi_start_btn", show=True)
+        dpg.configure_item("rsi_stop_btn", show=False)
+    
+    def _send_discord_alert(self, message, color=0xFF5733):
+        """Send alert to Discord webhook"""
+        try:
+            embed = {
+                "embeds": [{
+                    "title": "🔔 RSI Alert",
+                    "description": message,
+                    "color": color,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "footer": {"text": "Zerodha Trading Bot"}
+                }]
+            }
+            response = requests.post(self.discord_webhook_url, json=embed, timeout=5)
+            if response.status_code == 204:
+                print(f"[INFO] Discord alert sent successfully")
+            else:
+                print(f"[WARNING] Discord alert failed: {response.status_code}")
+        except Exception as e:
+            print(f"[ERROR] Failed to send Discord alert: {str(e)}")
+    
+    def _play_alert_sound(self):
+        """Play alert sound (cross-platform)"""
+        import platform
+        if platform.system() == "Darwin":
+            os.system('afplay /System/Library/Sounds/Glass.aiff')
+        elif platform.system() == "Windows":
+            import winsound
+            winsound.Beep(1000, 500)
+        else:
+            os.system('paplay /usr/share/sounds/freedesktop/stereo/complete.oga || aplay /usr/share/sounds/alsa/Front_Center.wav || beep')
+    
+    def _resolve_instrument_token(self, symbol):
+        """Resolve instrument token from symbol using cached instruments list"""
+        from kiteconnect import KiteConnect
+        from Core_Modules.config import Config
+        import time
+        
+        symbol = symbol.strip().upper()
+        if symbol.startswith("NSE:"):
+            tradingsymbol = symbol.split(":")[1]
+        else:
+            tradingsymbol = symbol
+        
+        try:
+            # Use cached instruments if available and less than 24 hours old
+            if self.instruments_cache is None or self.instruments_cache_time is None or \
+               (time.time() - self.instruments_cache_time) > 86400:
+                # Fetch fresh instruments list
+                kite = KiteConnect(api_key=Config.API_KEY)
+                kite.set_access_token(Config.ACCESS_TOKEN)
+                self.instruments_cache = kite.instruments(exchange="NSE")
+                self.instruments_cache_time = time.time()
+                print("[INFO] Fetched fresh instruments list from API")
+            
+            # Search in cache
+            for inst in self.instruments_cache:
+                if inst['tradingsymbol'].upper() == tradingsymbol:
+                    return int(inst['instrument_token'])
+        except Exception as e:
+            print(f"Instrument token API lookup error: {e}")
+        return None
     
     def run(self):
         """Run the application"""
