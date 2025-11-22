@@ -57,7 +57,7 @@ API_SECRET=your_api_secret_here
 ### 3. Run the Launcher
 
 ```bash
-python launcher.py
+python3.9 launcher.py
 ```
 
 The launcher provides easy access to all features:
@@ -71,14 +71,17 @@ The launcher provides easy access to all features:
 
 ```bash
 # Verify setup
-python Application/verify_setup.py
+python3.9 Application/verify_setup.py
+
+# Authenticate (first time or daily)
+python3.9 Application/authenticate.py
 
 # Start trading app
-python Application/main.py
+python3.9 Application/main.py
 
 # Run examples
-python Examples/basic_order.py
-python Examples/websocket_stream.py
+python3.9 Examples/basic_order.py
+python3.9 Examples/websocket_stream.py
 ```
 
 ## 📚 Documentation
@@ -108,4 +111,4 @@ MIT License - Use at your own risk. Trading involves financial risk.
 
 ---
 
-**Get Started**: Run `python launcher.py` to begin!
+**Get Started**: Run `python3.9 launcher.py` to begin!

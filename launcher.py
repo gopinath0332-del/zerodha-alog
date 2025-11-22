@@ -1,13 +1,17 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.9
 """
 Launcher script for Zerodha Kite Trading Bot
 Provides easy access to main applications
 """
 import sys
 import os
+import subprocess
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(__file__))
+
+# Python executable to use
+PYTHON_EXE = 'python3.9'
 
 def show_menu():
     """Display launcher menu"""
@@ -31,24 +35,22 @@ def main():
         
         if choice == '1':
             print("\n--- Running Setup Verification ---\n")
-            os.system(f'{sys.executable} Application/verify_setup.py')
+            os.system(f'{PYTHON_EXE} Application/verify_setup.py')
         elif choice == '2':
             print("\n--- Starting Authentication ---\n")
-            os.chdir('Application')
-            os.system(f'{sys.executable} -c "import sys; sys.path.insert(0, \'..\'); from Core_Modules.auth import KiteAuth; auth = KiteAuth(); auth.open_login_page() if not auth.access_token else None; request_token = input(\'\\nEnter request_token: \').strip(); auth.generate_session(request_token) if request_token else print(\'No token provided\')"')
-            os.chdir('..')
+            os.system(f'{PYTHON_EXE} Application/authenticate.py')
         elif choice == '3':
             print("\n--- Starting Trading Application ---\n")
-            os.system(f'{sys.executable} Application/main.py')
+            os.system(f'{PYTHON_EXE} Application/main.py')
         elif choice == '4':
             print("\n--- Running Basic Order Example ---\n")
-            os.system(f'{sys.executable} Examples/basic_order.py')
+            os.system(f'{PYTHON_EXE} Examples/basic_order.py')
         elif choice == '5':
             print("\n--- Running Limit Order Example ---\n")
-            os.system(f'{sys.executable} Examples/limit_order.py')
+            os.system(f'{PYTHON_EXE} Examples/limit_order.py')
         elif choice == '6':
             print("\n--- Running WebSocket Stream Example ---\n")
-            os.system(f'{sys.executable} Examples/websocket_stream.py')
+            os.system(f'{PYTHON_EXE} Examples/websocket_stream.py')
         elif choice == '7':
             print("\nGoodbye!")
             break
