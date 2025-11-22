@@ -15,7 +15,9 @@ my-trade-py/
 │   └── utils.py           # Utility functions
 │
 ├── Application/           # Main applications
+│   ├── gui.py             # GUI trading application
 │   ├── main.py            # Interactive CLI application
+│   ├── authenticate.py    # Authentication script
 │   └── verify_setup.py    # Setup verification script
 │
 ├── Examples/              # Example scripts
@@ -32,9 +34,11 @@ my-trade-py/
 ├── Documentation/         # Documentation
 │   ├── README.md          # Main documentation
 │   ├── QUICKSTART.md      # Quick start guide
-│   └── PROJECT_OVERVIEW.md # Detailed project overview
+│   ├── PROJECT_OVERVIEW.md # Detailed project overview
+│   └── GUI_GUIDE.md       # GUI application guide
 │
-└── launcher.py            # Main launcher script
+├── launcher.py            # CLI launcher script
+└── run_gui.sh             # GUI launcher script
 ```
 
 ## 🚀 Quick Start
@@ -70,19 +74,42 @@ The launcher provides easy access to all features:
 ### Alternative: Direct Commands
 
 ```bash
+# Launch GUI Application
+./run_gui.sh
+
 # Verify setup
 python3.9 Application/verify_setup.py
 
 # Authenticate (first time or daily)
 python3.9 Application/authenticate.py
 
-# Start trading app
+# Start CLI trading app
 python3.9 Application/main.py
 
 # Run examples
 python3.9 Examples/basic_order.py
 python3.9 Examples/websocket_stream.py
 ```
+
+## 🖥️ GUI Application
+
+Launch the graphical interface:
+
+```bash
+./run_gui.sh
+```
+
+The GUI provides:
+
+- 📊 Portfolio summary and analysis
+- 📈 Real-time positions and holdings
+- 🎯 Interactive order placement
+- 📉 Market data viewer
+- 🏆 Top gainers/losers
+- 💰 Position sizing calculator
+- 💾 CSV export functionality
+
+See `Documentation/GUI_GUIDE.md` for detailed GUI usage.
 
 ## 📚 Documentation
 
