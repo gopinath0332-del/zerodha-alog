@@ -75,6 +75,8 @@ class ModernTradingGUI:
         self.current_view = "welcome"
         self.request_token = None
         self.callback_server = None
+        self.instruments_cache = None  # Cache for instruments list
+        self.instruments_cache_time = None  # When cache was created
         
         # Data storage for charts
         self.portfolio_data = {
@@ -1141,19 +1143,30 @@ Capital Required: Rs.{capital_required:,.2f}
             os.system('paplay /usr/share/sounds/freedesktop/stereo/complete.oga || aplay /usr/share/sounds/alsa/Front_Center.wav || beep')
     
     def _resolve_instrument_token(self, symbol):
-        """Resolve instrument token from symbol using KiteConnect.instruments()"""
+        """Resolve instrument token from symbol using cached instruments list"""
         from kiteconnect import KiteConnect
         from Core_Modules.config import Config
+        import time
+        
         symbol = symbol.strip().upper()
         if symbol.startswith("NSE:"):
             tradingsymbol = symbol.split(":")[1]
         else:
             tradingsymbol = symbol
+        
         try:
-            kite = KiteConnect(api_key=Config.API_KEY)
-            kite.set_access_token(Config.ACCESS_TOKEN)
-            instruments = kite.instruments(exchange="NSE")
-            for inst in instruments:
+            # Use cached instruments if available and less than 24 hours old
+            if self.instruments_cache is None or self.instruments_cache_time is None or \
+               (time.time() - self.instruments_cache_time) > 86400:
+                # Fetch fresh instruments list
+                kite = KiteConnect(api_key=Config.API_KEY)
+                kite.set_access_token(Config.ACCESS_TOKEN)
+                self.instruments_cache = kite.instruments(exchange="NSE")
+                self.instruments_cache_time = time.time()
+                print("[INFO] Fetched fresh instruments list from API")
+            
+            # Search in cache
+            for inst in self.instruments_cache:
                 if inst['tradingsymbol'].upper() == tradingsymbol:
                     return int(inst['instrument_token'])
         except Exception as e:
