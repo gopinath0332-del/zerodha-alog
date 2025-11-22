@@ -15,7 +15,9 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 import threading
 from datetime import datetime
+import webbrowser
 from Core_Modules.trader import KiteTrader
+from Core_Modules.auth import KiteAuth
 from Core_Modules.utils import (
     get_portfolio_summary,
     get_top_gainers_losers,
@@ -126,8 +128,17 @@ class TradingGUI:
         except Exception as e:
             self.is_authenticated = False
             self.update_status("Status: Authentication Failed ✗")
-            messagebox.showerror("Authentication Error", 
-                               f"Failed to authenticate:\n{str(e)}\n\nPlease run authenticate.py first.")
+            
+            # Offer to authenticate through GUI
+            result = messagebox.askyesno(
+                "Authentication Required",
+                f"No valid access token found.\n\n"
+                f"Error: {str(e)}\n\n"
+                f"Would you like to authenticate now?"
+            )
+            
+            if result:
+                self.show_authentication_dialog()
     
     def update_status(self, text):
         """Update status bar"""
@@ -143,10 +154,233 @@ class TradingGUI:
     def check_auth(self):
         """Check if authenticated"""
         if not self.is_authenticated:
-            messagebox.showwarning("Not Authenticated", 
-                                 "Please authenticate first!")
+            result = messagebox.askyesno(
+                "Not Authenticated",
+                "You need to authenticate first.\n\nWould you like to authenticate now?"
+            )
+            if result:
+                self.show_authentication_dialog()
             return False
         return True
+    
+    def show_authentication_dialog(self):
+        """Show authentication dialog with OAuth flow"""
+        auth_window = tk.Toplevel(self.root)
+        auth_window.title("Zerodha Authentication")
+        auth_window.geometry("700x500")
+        auth_window.transient(self.root)
+        auth_window.grab_set()
+        
+        frame = ttk.Frame(auth_window, padding="20")
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        ttk.Label(frame, text="🔐 Zerodha Kite Connect Authentication", 
+                 font=('Arial', 14, 'bold')).pack(pady=(0, 20))
+        
+        # Instructions
+        instructions = scrolledtext.ScrolledText(frame, height=10, width=70, wrap=tk.WORD)
+        instructions.pack(pady=10, fill=tk.BOTH, expand=True)
+        
+        instructions.insert(tk.END, """
+═══════════════════════════════════════════════════════════════
+
+                    AUTHENTICATION STEPS
+
+═══════════════════════════════════════════════════════════════
+
+STEP 1: Click "Open Login Page" button below
+        → This will open Zerodha login in your browser
+
+STEP 2: Login with your Zerodha credentials
+        → Use your User ID, Password, and 2FA (TOTP/PIN)
+
+STEP 3: After successful login, you'll be redirected to a URL like:
+        http://127.0.0.1:5000/callback?request_token=XXXXXX&action=login
+
+STEP 4: Copy ONLY the request_token value from the URL
+        → Example: If URL shows request_token=abc123xyz456
+        → Copy ONLY: abc123xyz456
+        → DO NOT include "request_token=" or "&action=login"
+
+STEP 5: Paste immediately and click Authenticate
+        → Request tokens expire in 1-2 minutes!
+        → Must be used right away
+
+═══════════════════════════════════════════════════════════════
+
+⚠️  IMPORTANT NOTES:
+   • Request token is SINGLE-USE only
+   • Expires in 1-2 minutes after login
+   • If it fails, you must login again to get a new token
+   • Make sure API_KEY and API_SECRET in .env are correct
+
+═══════════════════════════════════════════════════════════════
+""")
+        instructions.config(state=tk.DISABLED)
+        
+        # Button to open login page
+        login_btn = ttk.Button(
+            frame, 
+            text="🌐 STEP 1: Open Login Page in Browser",
+            command=lambda: self.open_login_page(status_label)
+        )
+        login_btn.pack(pady=10, fill=tk.X)
+        
+        # Status label
+        status_label = ttk.Label(frame, text="", foreground="blue")
+        status_label.pack(pady=5)
+        
+        # Request token input
+        token_frame = ttk.Frame(frame)
+        token_frame.pack(pady=20, fill=tk.X)
+        
+        ttk.Label(token_frame, text="STEP 2: Enter Request Token:", 
+                 font=('Arial', 10, 'bold')).pack(anchor=tk.W)
+        
+        token_entry = ttk.Entry(token_frame, width=60, font=('Courier', 10))
+        token_entry.pack(pady=5, fill=tk.X)
+        
+        # Result area
+        result_text = tk.Text(frame, height=4, width=70, wrap=tk.WORD)
+        result_text.pack(pady=10, fill=tk.X)
+        
+        # Authenticate button
+        def do_authenticate():
+            request_token = token_entry.get().strip()
+            
+            if not request_token:
+                messagebox.showwarning("Missing Token", "Please enter the request token!")
+                return
+            
+            result_text.delete(1.0, tk.END)
+            result_text.insert(tk.END, "Authenticating...\n")
+            
+            def auth_thread():
+                try:
+                    # Create a fresh KiteAuth instance for authentication
+                    from kiteconnect import KiteConnect
+                    from Core_Modules.config import Config
+                    
+                    result_text.insert(tk.END, f"Using API Key: {Config.API_KEY[:10]}...\n")
+                    result_text.insert(tk.END, f"Request Token: {request_token[:10]}...\n\n")
+                    
+                    # Create KiteConnect instance directly
+                    kite = KiteConnect(api_key=Config.API_KEY)
+                    
+                    # Generate session with request token
+                    result_text.insert(tk.END, "Calling Zerodha API...\n")
+                    data = kite.generate_session(request_token, api_secret=Config.API_SECRET)
+                    access_token = data['access_token']
+                    
+                    # Save the access token to .env file
+                    result_text.insert(tk.END, "Saving access token...\n")
+                    self._save_access_token_to_env(access_token)
+                    
+                    # Set the access token on the kite instance
+                    result_text.insert(tk.END, "Setting access token...\n")
+                    kite.set_access_token(access_token)
+                    
+                    # Create trader with the authenticated kite instance directly
+                    result_text.insert(tk.END, "Initializing trader...\n")
+                    self.trader = KiteTrader.__new__(KiteTrader)
+                    self.trader.kite = kite
+                    
+                    self.is_authenticated = True
+                    self.update_status("Status: Authenticated ✓")
+                    
+                    result_text.delete(1.0, tk.END)
+                    result_text.insert(tk.END, "✓ Authentication Successful!\n\n")
+                    result_text.insert(tk.END, f"User ID: {data.get('user_id')}\n")
+                    result_text.insert(tk.END, f"User Name: {data.get('user_name')}\n")
+                    result_text.insert(tk.END, f"Access Token: {access_token[:20]}...\n\n")
+                    result_text.insert(tk.END, "Token saved to .env file.\nYou can now close this window and start trading!")
+                    
+                    messagebox.showinfo("Success", "Authentication successful!\nYou can now use all trading features.")
+                    
+                except Exception as e:
+                    import traceback
+                    error_details = traceback.format_exc()
+                    
+                    result_text.delete(1.0, tk.END)
+                    result_text.insert(tk.END, f"✗ Authentication Failed!\n\n")
+                    result_text.insert(tk.END, f"Error: {str(e)}\n\n")
+                    
+                    if "invalid" in str(e).lower() or "expired" in str(e).lower():
+                        result_text.insert(tk.END, "⚠️  REQUEST TOKEN ISSUE:\n")
+                        result_text.insert(tk.END, "• Token has expired (must use within 1-2 minutes)\n")
+                        result_text.insert(tk.END, "• Token was already used (single-use only)\n")
+                        result_text.insert(tk.END, "• Token was copied incorrectly\n\n")
+                        result_text.insert(tk.END, "SOLUTION: Click 'Open Login Page' again to get a NEW token\n")
+                    else:
+                        result_text.insert(tk.END, "Common issues:\n")
+                        result_text.insert(tk.END, "• Check API_KEY in .env file\n")
+                        result_text.insert(tk.END, "• Check API_SECRET in .env file\n")
+                        result_text.insert(tk.END, "• Verify credentials are correct\n")
+                    
+                    result_text.insert(tk.END, f"\n--- Debug Info ---\n{error_details}")
+            
+            threading.Thread(target=auth_thread, daemon=True).start()
+        
+        auth_btn = ttk.Button(
+            frame,
+            text="🔑 STEP 3: Authenticate with Request Token",
+            command=do_authenticate
+        )
+        auth_btn.pack(pady=10, fill=tk.X)
+        
+        # Close button
+        ttk.Button(frame, text="Close", command=auth_window.destroy).pack(pady=10)
+    
+    def open_login_page(self, status_label):
+        """Open Zerodha login page in browser"""
+        try:
+            # Create KiteAuth just to get login URL (doesn't need token)
+            from kiteconnect import KiteConnect
+            from Core_Modules.config import Config
+            
+            kite = KiteConnect(api_key=Config.API_KEY)
+            login_url = kite.login_url()
+            webbrowser.open(login_url)
+            status_label.config(
+                text="✓ Login page opened in browser. Complete login and copy request_token from redirect URL.",
+                foreground="green"
+            )
+        except Exception as e:
+            status_label.config(
+                text=f"✗ Error opening login page: {str(e)}",
+                foreground="red"
+            )
+    
+    def _save_access_token_to_env(self, access_token):
+        """Save access token to .env file"""
+        try:
+            env_file = Path(__file__).parent.parent / 'Configuration' / '.env'
+            
+            # Read existing content
+            if env_file.exists():
+                with open(env_file, 'r') as f:
+                    lines = f.readlines()
+            else:
+                lines = []
+            
+            # Update or add ACCESS_TOKEN
+            token_found = False
+            for i, line in enumerate(lines):
+                if line.startswith('ACCESS_TOKEN='):
+                    lines[i] = f'ACCESS_TOKEN={access_token}\n'
+                    token_found = True
+                    break
+            
+            if not token_found:
+                lines.append(f'ACCESS_TOKEN={access_token}\n')
+            
+            # Write back to file
+            with open(env_file, 'w') as f:
+                f.writelines(lines)
+            
+        except Exception as e:
+            print(f"Warning: Could not save access token to .env: {e}")
     
     def show_welcome(self):
         """Show welcome message"""
