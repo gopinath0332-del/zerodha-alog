@@ -82,6 +82,9 @@ class ModernTradingGUI:
         self.rsi_monitor_running = False  # Track RSI monitor state
         self.current_rsi_value = None  # Track current RSI value for alerts
         self.current_rsi_symbol = None  # Track symbol being monitored
+        self.donchian_monitor_running = False  # Track Donchian monitor state
+        self.current_donchian_price = None  # Track current price
+        self.current_donchian_symbol = None  # Track symbol being monitored
         self.discord_webhook_url = "https://discord.com/api/webhooks/1435171751305678868/2qh5UiV4VCP3wuZL3IprM9y0YuGHMRxrIn-vPsL5sdjL7j3bV3B6uZxzWzHKjrcHZa0Q"
         
         # Data storage for charts
@@ -102,6 +105,8 @@ class ModernTradingGUI:
         # Try to authenticate on startup (after UI is set up)
         threading.Timer(0.1, self.authenticate).start()
         threading.Timer(0.2, self.show_welcome).start()
+        # Load GOLDPETAL futures for Donchian tab
+        threading.Timer(0.3, self.load_goldpetal_futures).start()
     
     def setup_theme(self):
         """Setup custom theme for professional trading terminal look"""
@@ -319,8 +324,8 @@ class ModernTradingGUI:
                             dpg.add_button(label="Export Portfolio", callback=self.export_portfolio)
                             dpg.add_text("", tag="export_status")
                 
-                # RSI Strategy Tab
-                with dpg.tab(label="RSI"):
+                # NatgasMini RSI Monitor Tab
+                with dpg.tab(label="NatgasMini"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("RSI Live Monitor", tag="rsi_title")
                         dpg.add_separator()
@@ -343,6 +348,31 @@ class ModernTradingGUI:
                         dpg.add_text("Alerts: RSI > 70 (Overbought), RSI < 30 (Oversold)", color=(255,255,255))
                         dpg.add_spacer(height=10)
                         dpg.add_text("Note: RSI matches Zerodha chart (period=14, close)", color=(150,255,150))
+                
+                # GOLDPETAL Donchian Channel Tab
+                with dpg.tab(label="GOLDPETAL"):
+                    with dpg.child_window(height=-1):
+                        dpg.add_text("Donchian Channel Strategy Monitor", tag="donchian_title")
+                        dpg.add_separator()
+                        with dpg.group(horizontal=True):
+                            dpg.add_combo(label="Future", tag="donchian_contract", items=[], width=200, callback=self.on_donchian_contract_change)
+                            dpg.add_spacer(width=10)
+                            dpg.add_input_text(label="Symbol", tag="donchian_symbol", default_value="GOLDPETAL", width=150)
+                        dpg.add_combo(label="Interval", tag="donchian_interval", items=["1hour"], default_value="1hour", width=120)
+                        with dpg.group(horizontal=True):
+                            dpg.add_button(label="Launch Donchian Monitor", tag="donchian_start_btn", callback=self.launch_donchian_monitor)
+                            dpg.add_button(label="Stop Monitor", tag="donchian_stop_btn", callback=self.stop_donchian_monitor, show=False)
+                        dpg.add_spacer(height=10)
+                        dpg.add_text("Current Price: --", tag="donchian_current_price", color=(200,200,255))
+                        dpg.add_text("Upper Band: --", tag="donchian_upper_band", color=(255,200,100))
+                        dpg.add_text("Lower Band: --", tag="donchian_lower_band", color=(100,200,255))
+                        dpg.add_text("Last Alert: --", tag="donchian_last_alert", color=(255,200,100))
+                        dpg.add_spacer(height=10)
+                        dpg.add_text("Status: Idle", tag="donchian_status", color=(150,150,150))
+                        dpg.add_separator()
+                        dpg.add_text("Alerts: Price breaks above Upper Band (Bullish) or below Lower Band (Bearish)", color=(255,255,255))
+                        dpg.add_spacer(height=10)
+                        dpg.add_text("Note: Donchian Channels identify trend reversals and breakouts", color=(150,255,150))
         
         # Don't call show_welcome here - it will be called after viewport is shown
     
@@ -1111,6 +1141,48 @@ Capital Required: Rs.{capital_required:,.2f}
         
         threading.Thread(target=fetch_ncdex, daemon=True).start()
     
+    def load_goldpetal_futures(self):
+        """Load GOLDPETAL futures from MCX API"""
+        def fetch_goldpetal():
+            try:
+                from Core_Modules.config import Config
+                from kiteconnect import KiteConnect
+                import importlib
+                import Core_Modules.config as config_module
+                importlib.reload(config_module)
+                
+                kite = KiteConnect(api_key=Config.API_KEY)
+                kite.set_access_token(Config.ACCESS_TOKEN)
+                
+                instruments = kite.instruments(exchange="MCX")
+                # Get GOLDPETAL FUT (futures) only, exclude PE/CE (options)
+                goldpetal_futures = []
+                for inst in instruments:
+                    symbol = inst['tradingsymbol']
+                    instrument_type = inst.get('instrument_type', '')
+                    if 'GOLDPETAL' in symbol and instrument_type == 'FUT':
+                        goldpetal_futures.append(symbol)
+                
+                # Sort futures by expiry
+                goldpetal_futures = sorted(goldpetal_futures)
+                dpg.configure_item("donchian_contract", items=goldpetal_futures)
+                if goldpetal_futures:
+                    # Auto-select first one
+                    dpg.set_value("donchian_contract", goldpetal_futures[0])
+                    self.on_donchian_contract_change()
+                print(f"[INFO] Loaded {len(goldpetal_futures)} GOLDPETAL futures")
+            except Exception as e:
+                print(f"[ERROR] Failed to load GOLDPETAL futures: {e}")
+                dpg.configure_item("donchian_contract", items=["Error loading futures"])
+        
+        threading.Thread(target=fetch_goldpetal, daemon=True).start()
+    
+    def on_donchian_contract_change(self):
+        """Handle Donchian future contract selection change"""
+        contract = dpg.get_value("donchian_contract")
+        if contract and "Error" not in contract:
+            dpg.set_value("donchian_symbol", contract)
+    
     def launch_rsi_monitor(self):
         """Start live RSI monitoring for selected symbol and interval"""
         exchange = dpg.get_value("rsi_exchange")
@@ -1317,6 +1389,219 @@ Capital Required: Rs.{capital_required:,.2f}
         dpg.configure_item("rsi_status", color=(255,150,0))
         dpg.configure_item("rsi_start_btn", show=True)
         dpg.configure_item("rsi_stop_btn", show=False)
+    
+    def launch_donchian_monitor(self):
+        """Start live Donchian Channel monitoring"""
+        symbol_input = dpg.get_value("donchian_symbol").strip().upper()
+        upper_period = 20  # Fixed upper band period
+        lower_period = 10  # Fixed lower band period
+        interval = dpg.get_value("donchian_interval")
+        
+        # For commodities, symbol is used as-is; for NSE, we'll add the prefix
+        symbol = symbol_input
+        
+        if self.donchian_monitor_running:
+            dpg.set_value("donchian_status", "Monitor already running. Stop it first.")
+            dpg.configure_item("donchian_status", color=(255,200,0))
+            return
+        
+        self.donchian_monitor_running = True
+        dpg.configure_item("donchian_start_btn", show=False)
+        dpg.configure_item("donchian_stop_btn", show=True)
+        
+        dpg.set_value("donchian_status", f"Launching Donchian monitor for {symbol} ({interval})...")
+        
+        def donchian_worker():
+            import time
+            from kiteconnect import KiteConnect
+            from Core_Modules.config import Config
+            import pandas as pd
+            from datetime import datetime, timedelta
+            import pytz
+            
+            print(f"\n{'='*60}")
+            print(f"Donchian Channel Monitor Started")
+            print(f"Symbol: {symbol} | Interval: {interval}")
+            print(f"Upper Period: {upper_period} | Lower Period: {lower_period}")
+            print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"{'='*60}\n")
+            
+            try:
+                import importlib
+                import Core_Modules.config as config_module
+                importlib.reload(config_module)
+                api_key = config_module.Config.API_KEY
+                access_token = config_module.Config.ACCESS_TOKEN
+                kite = KiteConnect(api_key=api_key)
+                kite.set_access_token(access_token)
+                
+                last_alert = "--"
+                first_run = True
+                ist = pytz.timezone('Asia/Kolkata')
+                
+                def next_market_hour_boundary(now):
+                    # For commodities: next check at next whole hour
+                    if now.minute == 0:
+                        next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                    else:
+                        next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                    return next_boundary
+                
+                def do_donchian_analysis():
+                    nonlocal first_run, last_alert
+                    
+                    # Resolve instrument token
+                    instrument_token = self._resolve_instrument_token(symbol)
+                    if not instrument_token:
+                        error_msg = f"**Symbol:** {symbol}\n**Error:** Instrument token not found\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"[ERROR] Instrument token not found for {symbol}")
+                        dpg.set_value("donchian_status", f"Instrument token not found for {symbol}")
+                        dpg.configure_item("donchian_status", color=(255,100,100))
+                        self._send_discord_alert(error_msg, color=0xFF0000)
+                        return False
+                    
+                    # Fetch historical data
+                    data = kite.historical_data(
+                        instrument_token=instrument_token,
+                        from_date=(datetime.now()-pd.Timedelta(days=30)).strftime('%Y-%m-%d'),
+                        to_date=datetime.now().strftime('%Y-%m-%d'),
+                        interval="hour"
+                    )
+                    df = pd.DataFrame(data)
+                    
+                    if df.empty or 'high' not in df or 'low' not in df or 'close' not in df:
+                        error_msg = f"**Symbol:** {symbol}\n**Error:** No data received from API\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"[WARNING] No data received from API")
+                        dpg.set_value("donchian_status", "No data found or API error.")
+                        dpg.configure_item("donchian_status", color=(255,100,100))
+                        self._send_discord_alert(error_msg, color=0xFFA500)
+                        time.sleep(60)
+                        return False
+                    
+                    # Convert dates to IST
+                    df['date'] = pd.to_datetime(df['date'])
+                    if df['date'].dt.tz is None:
+                        df['date'] = df['date'].dt.tz_localize('UTC').dt.tz_convert(ist)
+                    else:
+                        df['date'] = df['date'].dt.tz_convert(ist)
+                    
+                    if len(df) < max(upper_period, lower_period):
+                        required = max(upper_period, lower_period)
+                        error_msg = f"**Symbol:** {symbol}\n**Error:** Not enough candles ({len(df)}/{required})\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"[WARNING] Not enough candles: {len(df)} (need {required}+)")
+                        dpg.set_value("donchian_status", f"Not enough historical candles (need {required}+)")
+                        dpg.configure_item("donchian_status", color=(255,100,100))
+                        self._send_discord_alert(error_msg, color=0xFFA500)
+                        return False
+                    
+                    # Calculate Donchian Channels
+                    high = df['high']
+                    low = df['low']
+                    close = df['close']
+                    
+                    # Upper band: highest high over upper_period
+                    upper_band = high.rolling(window=upper_period).max().iloc[-1]
+                    # Lower band: lowest low over lower_period
+                    lower_band = low.rolling(window=lower_period).min().iloc[-1]
+                    
+                    current_price = float(close.iloc[-1])
+                    self.current_donchian_price = current_price
+                    self.current_donchian_symbol = symbol
+                    
+                    current_time = datetime.now().strftime('%H:%M:%S')
+                    print(f"[{current_time}] Price: {current_price:.2f} | Upper: {upper_band:.2f} | Lower: {lower_band:.2f}")
+                    
+                    dpg.set_value("donchian_current_price", f"Current Price: {current_price:.2f}")
+                    dpg.set_value("donchian_upper_band", f"Upper Band: {upper_band:.2f}")
+                    dpg.set_value("donchian_lower_band", f"Lower Band: {lower_band:.2f}")
+                    
+                    if first_run:
+                        start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        self._send_discord_alert(start_msg, color=0x3498DB)
+                        first_run = False
+                    
+                    # Check for breakouts
+                    if current_price > upper_band:
+                        last_alert = f"BREAKOUT ABOVE at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
+                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Status:** BULLISH BREAKOUT (Price > Upper Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"\n{'*'*60}")
+                        print(f"ALERT: BULLISH BREAKOUT! Price = {current_price:.2f} > {upper_band:.2f}")
+                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                        print(f"{'*'*60}\n")
+                        dpg.set_value("donchian_last_alert", last_alert)
+                        dpg.configure_item("donchian_last_alert", color=(100,255,100))
+                        self._send_discord_alert(alert_msg, color=0x33FF57)
+                        self._play_alert_sound()
+                    elif current_price < lower_band:
+                        last_alert = f"BREAKDOWN BELOW at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
+                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** BEARISH BREAKDOWN (Price < Lower Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        print(f"\n{'*'*60}")
+                        print(f"ALERT: BEARISH BREAKDOWN! Price = {current_price:.2f} < {lower_band:.2f}")
+                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                        print(f"{'*'*60}\n")
+                        dpg.set_value("donchian_last_alert", last_alert)
+                        dpg.configure_item("donchian_last_alert", color=(255,100,100))
+                        self._send_discord_alert(alert_msg, color=0xFF5733)
+                        self._play_alert_sound()
+                    else:
+                        dpg.set_value("donchian_last_alert", last_alert)
+                    
+                    dpg.set_value("donchian_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
+                    dpg.configure_item("donchian_status", color=(150,150,150))
+                    return True
+                
+                # Immediate analysis
+                if self.donchian_monitor_running:
+                    do_donchian_analysis()
+                
+                # Schedule next checks at hourly boundaries
+                while self.donchian_monitor_running:
+                    now = datetime.now(ist)
+                    next_boundary = next_market_hour_boundary(now)
+                    wait_seconds = (next_boundary - now).total_seconds()
+                    if wait_seconds > 0:
+                        dpg.set_value("donchian_status", f"Waiting for next market hour boundary: {next_boundary.strftime('%H:%M')}")
+                        dpg.configure_item("donchian_status", color=(200,200,100))
+                        time.sleep(wait_seconds)
+                    if not self.donchian_monitor_running:
+                        break
+                    do_donchian_analysis()
+            
+            except Exception as e:
+                error_msg = f"**Symbol:** {symbol}\n**Error:** {str(e)}\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                print(f"[ERROR] Donchian Monitor Exception: {str(e)}")
+                dpg.set_value("donchian_status", f"Error: {str(e)}")
+                dpg.configure_item("donchian_status", color=(255,100,100))
+                self._send_discord_alert(error_msg, color=0xFF0000)
+            finally:
+                price_info = f"**Price:** {self.current_donchian_price:.2f}\n" if self.current_donchian_price else ""
+                stop_msg = f"**Symbol:** {symbol}\n{price_info}**Status:** Monitor Stopped (Thread Exit)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                print(f"\n{'='*60}")
+                print(f"Donchian Channel Monitor Stopped")
+                print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"{'='*60}\n")
+                self._send_discord_alert(stop_msg, color=0x808080)
+                self.donchian_monitor_running = False
+                dpg.configure_item("donchian_start_btn", show=True)
+                dpg.configure_item("donchian_stop_btn", show=False)
+        
+        threading.Thread(target=donchian_worker, daemon=True).start()
+    
+    def stop_donchian_monitor(self):
+        """Stop the Donchian Channel monitoring"""
+        print(f"[INFO] User requested to stop Donchian monitor")
+        self.donchian_monitor_running = False
+        
+        # Send Discord alert for manual stop
+        symbol_info = f"**Symbol:** {self.current_donchian_symbol}\n" if self.current_donchian_symbol else ""
+        price_info = f"**Price:** {self.current_donchian_price:.2f}\n" if self.current_donchian_price else ""
+        stop_msg = f"{symbol_info}{price_info}**Status:** Monitor Stopped (User Request)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        self._send_discord_alert(stop_msg, color=0x808080)  # Gray
+        
+        dpg.set_value("donchian_status", "Monitor stopped")
+        dpg.configure_item("donchian_status", color=(255,150,0))
+        dpg.configure_item("donchian_start_btn", show=True)
+        dpg.configure_item("donchian_stop_btn", show=False)
     
     def _send_discord_alert(self, message, color=0xFF5733):
         """Send alert to Discord webhook"""
