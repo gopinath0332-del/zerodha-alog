@@ -1157,15 +1157,26 @@ Capital Required: Rs.{capital_required:,.2f}
                 last_alert = "--"
                 first_run = True
                 ist = pytz.timezone('Asia/Kolkata')
-                # Calculate time to next :15 mark after market open (9:15)
+                # Calculate time to next market hour boundary
                 def next_market_hour_boundary(now):
-                    # If before 9:15, wait until 9:15
-                    market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
-                    if now < market_open:
-                        return market_open
-                    # Next :15 mark (10:15, 11:15, ...)
-                    next_hour = now.hour + 1 if now.minute >= 15 else now.hour
-                    return now.replace(hour=next_hour, minute=15, second=0, microsecond=0)
+                    # Determine market based on exchange
+                    exchange = dpg.get_value("rsi_exchange")
+                    if exchange == "MCX" or exchange == "NCDEX":
+                        # Commodities: next check at next whole hour (10:00, 11:00, etc.)
+                        if now.minute == 0:
+                            # Already at :00, go to next hour
+                            next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                        else:
+                            # Go to next whole hour
+                            next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                        return next_boundary
+                    else:  # NSE
+                        # Stocks: next check at next :15 mark (10:15, 11:15, etc.)
+                        if now.minute < 15:
+                            return now.replace(minute=15, second=0, microsecond=0)
+                        else:
+                            next_hour = now.hour + 1
+                            return now.replace(hour=next_hour, minute=15, second=0, microsecond=0)
                 # Immediate analysis on start
                 def do_rsi_analysis():
                     # Resolve instrument token
