@@ -3,10 +3,9 @@ Common trading strategies and helper functions
 """
 from .trader import KiteTrader
 from datetime import datetime, timedelta
-import logging
+from .logger import get_logger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TradingStrategies:
@@ -37,10 +36,15 @@ class TradingStrategies:
             target_price = round(current_price * (1 + target_pct/100), 2)
             sl_price = round(current_price * (1 - sl_pct/100), 2)
             
-            logger.info(f"Bracket Order for {symbol}")
-            logger.info(f"Entry: ₹{current_price}")
-            logger.info(f"Target: ₹{target_price} (+{target_pct}%)")
-            logger.info(f"Stop Loss: ₹{sl_price} (-{sl_pct}%)")
+            logger.info(
+                "calculating_bracket_order",
+                symbol=symbol,
+                entry_price=current_price,
+                target_price=target_price,
+                target_pct=target_pct,
+                sl_price=sl_price,
+                sl_pct=sl_pct
+            )
             
             # This is just a simulation - actual bracket orders need to be placed carefully
             # UNCOMMENT TO PLACE REAL ORDERS
@@ -97,7 +101,7 @@ class TradingStrategies:
             }
             
         except Exception as e:
-            logger.error(f"Bracket order failed: {e}")
+            logger.error("bracket_order_failed", error=str(e), exc_info=True)
             raise
     
     def momentum_strategy(self, symbols, threshold=2.0):
@@ -147,7 +151,7 @@ class TradingStrategies:
             return momentum_stocks
             
         except Exception as e:
-            logger.error(f"Momentum strategy failed: {e}")
+            logger.error("momentum_strategy_failed", error=str(e), exc_info=True)
             raise
     
     def trailing_stop_loss(self, symbol, quantity, initial_sl_pct=2.0, trail_pct=0.5):
@@ -178,7 +182,7 @@ class TradingStrategies:
                     break
             
             if not entry_price:
-                logger.warning(f"No position found for {symbol}")
+                logger.warning("no_position_found_for_trailing_sl", symbol=symbol)
                 return None
             
             # Calculate profit percentage
@@ -192,11 +196,14 @@ class TradingStrategies:
                 # Keep initial stop loss
                 trail_sl = round(entry_price * (1 - initial_sl_pct/100), 2)
             
-            logger.info(f"Trailing SL for {symbol}:")
-            logger.info(f"  Entry: ₹{entry_price}")
-            logger.info(f"  Current: ₹{current_price}")
-            logger.info(f"  Profit: {profit_pct:.2f}%")
-            logger.info(f"  Trailing SL: ₹{trail_sl}")
+            logger.info(
+                "trailing_sl_calculated",
+                symbol=symbol,
+                entry_price=entry_price,
+                current_price=current_price,
+                profit_pct=round(profit_pct, 2),
+                trail_sl=trail_sl
+            )
             
             return {
                 'symbol': symbol,
@@ -207,7 +214,7 @@ class TradingStrategies:
             }
             
         except Exception as e:
-            logger.error(f"Trailing stop loss calculation failed: {e}")
+            logger.error("trailing_sl_calculation_failed", error=str(e), exc_info=True)
             raise
     
     def square_off_all_positions(self):
@@ -219,10 +226,10 @@ class TradingStrategies:
             day_positions = [p for p in positions['day'] if p['quantity'] != 0]
             
             if not day_positions:
-                logger.info("No positions to square off")
+                logger.info("no_positions_to_square_off")
                 return
             
-            logger.warning(f"⚠️  Squaring off {len(day_positions)} positions")
+            logger.warning("squaring_off_positions", count=len(day_positions))
             
             # UNCOMMENT TO ACTUALLY SQUARE OFF
             """
@@ -253,10 +260,14 @@ class TradingStrategies:
             """
             
             for pos in day_positions:
-                logger.info(f"Would square off: {pos['tradingsymbol']} - Qty: {pos['quantity']}")
+                logger.info(
+                    "would_square_off",
+                    symbol=pos['tradingsymbol'],
+                    quantity=pos['quantity']
+                )
             
         except Exception as e:
-            logger.error(f"Square off failed: {e}")
+            logger.error("square_off_failed", error=str(e), exc_info=True)
             raise
 
 
@@ -264,18 +275,26 @@ if __name__ == "__main__":
     strategy = TradingStrategies()
     
     # Example 1: Momentum strategy
-    print("\n=== Momentum Strategy ===")
+    logger.info("running_momentum_strategy")
     stocks = ['INFY', 'TCS', 'RELIANCE', 'HDFCBANK', 'SBIN', 'WIPRO', 'LT', 'ITC']
     momentum = strategy.momentum_strategy(stocks, threshold=1.5)
     
-    print(f"\nStocks with momentum (>{1.5}% change):")
+    logger.info("momentum_stocks_found", count=len(momentum))
     for stock in momentum:
-        print(f"{stock['symbol']}: {stock['change_pct']:+.2f}% "
-              f"(₹{stock['current_price']}, Vol: {stock['volume']:,})")
+        logger.info(
+            "momentum_stock",
+            symbol=stock['symbol'],
+            change_pct=stock['change_pct'],
+            current_price=stock['current_price'],
+            volume=stock['volume']
+        )
     
     # Example 2: Bracket order simulation
-    print("\n=== Bracket Order (Simulation) ===")
+    logger.info("running_bracket_order_simulation")
     bracket = strategy.place_bracket_order('INFY', quantity=1, target_pct=3.0, sl_pct=1.5)
-    print(f"Entry: ₹{bracket['entry_price']}")
-    print(f"Target: ₹{bracket['target_price']}")
-    print(f"Stop Loss: ₹{bracket['sl_price']}")
+    logger.info(
+        "bracket_order_result",
+        entry_price=bracket['entry_price'],
+        target_price=bracket['target_price'],
+        sl_price=bracket['sl_price']
+    )

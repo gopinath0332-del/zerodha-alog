@@ -4,10 +4,9 @@ WebSocket ticker module for real-time market data streaming
 from kiteconnect import KiteTicker
 from .auth import KiteAuth
 from .config import Config
-import logging
+from .logger import get_logger
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class KiteWebSocket:
@@ -47,9 +46,14 @@ class KiteWebSocket:
             ws: WebSocket instance
             ticks: List of tick data
         """
-        logger.info(f"Ticks received: {len(ticks)}")
+        logger.info("ticks_received", count=len(ticks))
         for tick in ticks:
-            logger.debug(f"Tick: {tick}")
+            logger.debug(
+                "tick_received",
+                instrument_token=tick.get('instrument_token'),
+                last_price=tick.get('last_price'),
+                volume=tick.get('volume')
+            )
     
     def on_connect(self, ws, response):
         """
@@ -59,13 +63,17 @@ class KiteWebSocket:
             ws: WebSocket instance
             response: Connection response
         """
-        logger.info(f"Connected successfully: {response}")
+        logger.info("websocket_connected", response=response)
         
         # Subscribe to tokens if any were set before connection
         if self.subscribed_tokens:
             ws.subscribe(self.subscribed_tokens)
             ws.set_mode(ws.MODE_FULL, self.subscribed_tokens)
-            logger.info(f"Subscribed to {len(self.subscribed_tokens)} instruments")
+            logger.info(
+                "subscribed_on_connect",
+                count=len(self.subscribed_tokens),
+                tokens=self.subscribed_tokens
+            )
     
     def on_close(self, ws, code, reason):
         """
@@ -76,7 +84,7 @@ class KiteWebSocket:
             code: Close code
             reason: Close reason
         """
-        logger.info(f"Connection closed: {code} - {reason}")
+        logger.info("connection_closed", code=code, reason=reason)
         ws.stop()
     
     def on_error(self, ws, code, reason):
@@ -88,7 +96,7 @@ class KiteWebSocket:
             code: Error code
             reason: Error reason
         """
-        logger.error(f"Error: {code} - {reason}")
+        logger.error("websocket_error", code=code, reason=reason)
     
     def subscribe(self, instrument_tokens):
         """
@@ -104,9 +112,17 @@ class KiteWebSocket:
         
         if self.kws.is_connected():
             self.kws.subscribe(instrument_tokens)
-            logger.info(f"Subscribed to {len(instrument_tokens)} instruments")
+            logger.info(
+                "subscribed",
+                count=len(instrument_tokens),
+                tokens=instrument_tokens
+            )
         else:
-            logger.info(f"Tokens added. Will subscribe on connection.")
+            logger.info(
+                "tokens_added_offline",
+                count=len(instrument_tokens),
+                tokens=instrument_tokens
+            )
     
     def unsubscribe(self, instrument_tokens):
         """
@@ -124,7 +140,11 @@ class KiteWebSocket:
             if token in self.subscribed_tokens:
                 self.subscribed_tokens.remove(token)
         
-        logger.info(f"Unsubscribed from {len(instrument_tokens)} instruments")
+        logger.info(
+            "unsubscribed",
+            count=len(instrument_tokens),
+            tokens=instrument_tokens
+        )
     
     def set_mode(self, mode, instrument_tokens):
         """
@@ -138,7 +158,12 @@ class KiteWebSocket:
             instrument_tokens = [instrument_tokens]
         
         self.kws.set_mode(mode, instrument_tokens)
-        logger.info(f"Mode set to {mode} for {len(instrument_tokens)} instruments")
+        logger.info(
+            "mode_set",
+            mode=mode,
+            count=len(instrument_tokens),
+            tokens=instrument_tokens
+        )
     
     def connect(self, threaded=False):
         """
@@ -147,13 +172,13 @@ class KiteWebSocket:
         Args:
             threaded (bool): Run in threaded mode
         """
-        logger.info("Connecting to WebSocket...")
+        logger.info("connecting_websocket", threaded=threaded)
         self.kws.connect(threaded=threaded)
     
     def close(self):
         """Close WebSocket connection"""
         self.kws.close()
-        logger.info("WebSocket closed")
+        logger.info("websocket_closed")
 
 
 if __name__ == "__main__":
@@ -162,13 +187,16 @@ if __name__ == "__main__":
     def on_ticks(ws, ticks):
         """Custom tick handler"""
         for tick in ticks:
-            print(f"Instrument: {tick['instrument_token']}, "
-                  f"LTP: {tick['last_price']}, "
-                  f"Volume: {tick.get('volume', 'N/A')}")
+            logger.info(
+                "tick_received",
+                instrument_token=tick.get('instrument_token'),
+                last_price=tick.get('last_price'),
+                volume=tick.get('volume', 'N/A')
+            )
     
     def on_connect(ws, response):
         """Custom connect handler"""
-        print(f"Connected: {response}")
+        logger.info("connected", response=response)
         
         # Example: Subscribe to RELIANCE and TCS
         # You need to replace these with actual instrument tokens
@@ -180,7 +208,7 @@ if __name__ == "__main__":
     
     def on_close(ws, code, reason):
         """Custom close handler"""
-        print(f"Connection closed: {code} - {reason}")
+        logger.info("connection_closed", code=code, reason=reason)
         ws.stop()
     
     # Create WebSocket instance
@@ -191,11 +219,11 @@ if __name__ == "__main__":
     )
     
     # Connect
-    print("Starting WebSocket connection...")
-    print("Press Ctrl+C to stop")
+    logger.info("starting_websocket_connection")
+    logger.info("press_ctrl_c_to_stop")
     
     try:
         kws.connect()
     except KeyboardInterrupt:
-        print("\nStopping...")
+        logger.info("stopping_websocket")
         kws.close()

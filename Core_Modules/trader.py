@@ -4,11 +4,10 @@ Trading module for executing trades on Zerodha Kite Connect
 from kiteconnect import KiteConnect
 from .auth import KiteAuth
 from .config import Config
-import logging
+from .logger import get_logger
 import pandas as pd
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class KiteTrader:
@@ -33,10 +32,19 @@ class KiteTrader:
         """
         try:
             instruments = self.kite.instruments(exchange)
-            logger.info(f"Fetched {len(instruments)} instruments")
+            logger.info(
+                "instruments_fetched",
+                exchange=exchange,
+                count=len(instruments)
+            )
             return instruments
         except Exception as e:
-            logger.error(f"Failed to fetch instruments: {e}")
+            logger.error(
+                "instruments_fetch_failed",
+                exchange=exchange,
+                error=str(e),
+                exc_info=True
+            )
             raise
     
     def get_quote(self, *instruments):
@@ -51,9 +59,19 @@ class KiteTrader:
         """
         try:
             quote = self.kite.quote(*instruments)
+            logger.debug(
+                "quote_fetched",
+                instruments=list(instruments),
+                count=len(instruments)
+            )
             return quote
         except Exception as e:
-            logger.error(f"Failed to fetch quote: {e}")
+            logger.error(
+                "quote_fetch_failed",
+                instruments=list(instruments),
+                error=str(e),
+                exc_info=True
+            )
             raise
     
     def get_ltp(self, *instruments):
@@ -152,10 +170,28 @@ class KiteTrader:
                 validity=validity,
                 trigger_price=trigger_price
             )
-            logger.info(f"Order placed successfully. Order ID: {order_id}")
+            logger.info(
+                "order_placed",
+                order_id=order_id,
+                symbol=symbol,
+                exchange=exchange,
+                transaction_type=transaction_type,
+                quantity=quantity,
+                order_type=order_type,
+                product=product,
+                price=price
+            )
             return order_id
         except Exception as e:
-            logger.error(f"Order placement failed: {e}")
+            logger.error(
+                "order_placement_failed",
+                symbol=symbol,
+                exchange=exchange,
+                transaction_type=transaction_type,
+                quantity=quantity,
+                error=str(e),
+                exc_info=True
+            )
             raise
     
     def modify_order(self, order_id, variety='regular', quantity=None, 
@@ -253,10 +289,21 @@ class KiteTrader:
         """
         try:
             positions = self.kite.positions()
-            logger.info("Fetched positions")
+            day_count = len([p for p in positions.get('day', []) if p['quantity'] != 0])
+            net_count = len([p for p in positions.get('net', []) if p['quantity'] != 0])
+            logger.info(
+                "positions_fetched",
+                day_positions=day_count,
+                net_positions=net_count,
+                total_positions=day_count + net_count
+            )
             return positions
         except Exception as e:
-            logger.error(f"Failed to fetch positions: {e}")
+            logger.error(
+                "positions_fetch_failed",
+                error=str(e),
+                exc_info=True
+            )
             raise
     
     def get_holdings(self):
@@ -392,12 +439,12 @@ if __name__ == "__main__":
     
     # Get quote
     quote = trader.get_quote('NSE:INFY', 'NSE:TCS')
-    print("\nQuote:", quote)
+    logger.info("quote_fetched", quote=quote)
     
     # Get positions
     positions = trader.get_positions()
-    print("\nPositions:", positions)
+    logger.info("positions_fetched", positions=positions)
     
     # Get holdings
     holdings = trader.get_holdings()
-    print("\nHoldings:", holdings)
+    logger.info("holdings_fetched", holdings=holdings)

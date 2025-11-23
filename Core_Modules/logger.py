@@ -1,0 +1,171 @@
+"""
+Structured Logging Configuration for Trading Bot
+
+This module sets up structured logging using structlog for better
+log analysis, debugging, and monitoring.
+"""
+
+import sys
+import structlog
+from pathlib import Path
+
+
+def setup_logging(log_level="INFO", log_file=None):
+    """
+    Configure structured logging for the application.
+    
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_file: Optional path to log file. If None, logs only to console.
+    
+    Returns:
+        Configured structlog logger
+    """
+    
+    import logging
+    
+    # Determine log level
+    level_map = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
+    }
+    log_level_int = level_map.get(log_level.upper(), logging.INFO)
+    
+    # Configure processors (shared)
+    shared_processors = [
+        # Add log level to event dict
+        structlog.stdlib.add_log_level,
+        # Add timestamp
+        structlog.processors.TimeStamper(fmt="iso"),
+        # Add logger name
+        structlog.stdlib.add_logger_name,
+        # Add filename and line number
+        structlog.processors.CallsiteParameterAdder(
+            {
+                structlog.processors.CallsiteParameter.FILENAME,
+                structlog.processors.CallsiteParameter.LINENO,
+                structlog.processors.CallsiteParameter.FUNC_NAME,
+            }
+        ),
+        # Stack info for exceptions
+        structlog.processors.StackInfoRenderer(),
+        # Format exceptions
+        structlog.processors.format_exc_info,
+        # Unicode handling
+        structlog.processors.UnicodeDecoder(),
+    ]
+    
+    # Configure structlog
+    structlog.configure(
+        processors=shared_processors + [
+            # Use ProcessorFormatter to delegate rendering to stdlib
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        wrapper_class=structlog.stdlib.BoundLogger,
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+    
+    # Configure console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level_int)
+    
+    # Colored output for console
+    if sys.stderr.isatty():
+        console_formatter = structlog.stdlib.ProcessorFormatter(
+            processor=structlog.dev.ConsoleRenderer(colors=True),
+            foreign_pre_chain=shared_processors,
+        )
+    else:
+        console_formatter = structlog.stdlib.ProcessorFormatter(
+            processor=structlog.processors.JSONRenderer(),
+            foreign_pre_chain=shared_processors,
+        )
+    console_handler.setFormatter(console_formatter)
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level_int)
+    root_logger.addHandler(console_handler)
+    
+    # If log file specified, add file handler with JSON format
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(log_level_int)
+        
+        # JSON format for file
+        file_formatter = structlog.stdlib.ProcessorFormatter(
+            processor=structlog.processors.JSONRenderer(),
+            foreign_pre_chain=shared_processors,
+        )
+        file_handler.setFormatter(file_formatter)
+        
+        root_logger.addHandler(file_handler)
+    
+    return structlog.get_logger()
+
+
+def get_logger(name=None):
+    """
+    Get a configured logger instance.
+    
+    Args:
+        name: Logger name (usually __name__)
+    
+    Returns:
+        Configured structlog logger
+    """
+    return structlog.get_logger(name)
+
+
+# Example usage and best practices
+if __name__ == "__main__":
+    # Setup logging
+    logger = setup_logging(log_level="DEBUG")
+    
+    # Basic logging
+    logger.info("application_started", version="1.0.0")
+    
+    # Structured logging with context
+    logger.info(
+        "order_placed",
+        order_id="123456",
+        symbol="INFY",
+        quantity=10,
+        price=1500.00,
+        order_type="MARKET"
+    )
+    
+    # Warning with context
+    logger.warning(
+        "api_rate_limit_approaching",
+        current_calls=95,
+        max_calls=100,
+        time_window="1min"
+    )
+    
+    # Error logging
+    try:
+        result = 1 / 0
+    except Exception as e:
+        logger.error(
+            "calculation_failed",
+            error=str(e),
+            exc_info=True
+        )
+    
+    # Debug logging
+    logger.debug(
+        "position_calculated",
+        symbol="TCS",
+        entry_price=3500,
+        stop_loss=3450,
+        position_size=20
+    )

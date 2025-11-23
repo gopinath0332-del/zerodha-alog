@@ -25,6 +25,9 @@ from Core_Modules.utils import (
     export_holdings_to_csv,
     calculate_position_size
 )
+from Core_Modules.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Helper function for formatting currency
 def format_currency(amount):
@@ -380,7 +383,7 @@ STEP 5: Paste immediately and click Authenticate
                 f.writelines(lines)
             
         except Exception as e:
-            print(f"Warning: Could not save access token to .env: {e}")
+            logger.warning("access_token_save_failed", error=str(e))
     
     def show_welcome(self):
         """Show welcome message"""

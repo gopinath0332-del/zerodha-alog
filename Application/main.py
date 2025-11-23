@@ -7,13 +7,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from Core_Modules.trader import KiteTrader
 from Core_Modules.config import Config
-import logging
+from Core_Modules.logger import setup_logging, get_logger
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Setup structured logging
+setup_logging(log_level="INFO", log_file="logs/trading_app.log")
+logger = get_logger(__name__)
 
 
 def display_menu():
@@ -60,7 +58,7 @@ def view_market_data(trader):
                 print(f"  Volume: {data.get('volume', 'N/A'):,}")
                 print(f"  Change: {data.get('net_change', 0):.2f}%")
     except Exception as e:
-        logger.error(f"Failed to fetch market data: {e}")
+        logger.error("market_data_fetch_failed", error=str(e), exc_info=True)
 
 
 def view_portfolio(trader):
@@ -93,7 +91,7 @@ def view_portfolio(trader):
         print(f"Total P&L: ₹{total_pnl:,.2f} ({(total_pnl/total_investment*100) if total_investment > 0 else 0:.2f}%)")
         
     except Exception as e:
-        logger.error(f"Failed to fetch portfolio: {e}")
+        logger.error("portfolio_fetch_failed", error=str(e), exc_info=True)
 
 
 def place_order_interactive(trader):
@@ -151,7 +149,7 @@ def place_order_interactive(trader):
         print(f"Order ID: {order_id}")
         
     except Exception as e:
-        logger.error(f"Order placement failed: {e}")
+        logger.error("order_placement_failed", error=str(e), exc_info=True)
 
 
 def view_orders(trader):
@@ -177,7 +175,7 @@ def view_orders(trader):
             print(f"   Time: {order['order_timestamp']}\n")
             
     except Exception as e:
-        logger.error(f"Failed to fetch orders: {e}")
+        logger.error("orders_fetch_failed", error=str(e), exc_info=True)
 
 
 def view_positions(trader):
@@ -231,7 +229,7 @@ def view_positions(trader):
         print(f"Total P&L: ₹{total_pnl:.2f}")
         
     except Exception as e:
-        logger.error(f"Failed to fetch positions: {e}")
+        logger.error("positions_fetch_failed", error=str(e), exc_info=True)
 
 
 
@@ -272,7 +270,7 @@ def view_holdings(trader):
         print(f"Total P&L: ₹{total_pnl:,.2f} ({total_pnl/total_investment*100:.2f}%)")
         
     except Exception as e:
-        logger.error(f"Failed to fetch holdings: {e}")
+        logger.error("holdings_fetch_failed", error=str(e), exc_info=True)
 
 
 def view_margins(trader):
@@ -289,16 +287,16 @@ def view_margins(trader):
             print(f"  Used Margin: ₹{data['utilised']['debits']:,.2f}")
             
     except Exception as e:
-        logger.error(f"Failed to fetch margins: {e}")
+        logger.error("margins_fetch_failed", error=str(e), exc_info=True)
 
 
 def main():
     """Main application loop"""
     try:
         # Initialize trader
-        logger.info("Initializing trader...")
+        logger.info("initializing_trader")
         trader = KiteTrader()
-        logger.info("✓ Trader initialized successfully")
+        logger.info("trader_initialized")
         
         while True:
             display_menu()
@@ -332,7 +330,7 @@ def main():
     except KeyboardInterrupt:
         print("\n\nExiting...")
     except Exception as e:
-        logger.error(f"Application error: {e}")
+        logger.error("application_error", error=str(e), exc_info=True)
 
 
 if __name__ == "__main__":
