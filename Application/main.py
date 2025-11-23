@@ -187,28 +187,52 @@ def view_positions(trader):
     try:
         positions = trader.get_positions()
         
-        day_positions = [p for p in positions['day'] if p['quantity'] != 0]
+        day_positions = [p for p in positions.get('day', []) if p['quantity'] != 0]
+        net_positions = [p for p in positions.get('net', []) if p['quantity'] != 0]
         
-        if not day_positions:
+        # Filter out duplicates - net positions that are already in day
+        day_symbols = {p['tradingsymbol'] for p in day_positions}
+        net_only = [p for p in net_positions if p['tradingsymbol'] not in day_symbols]
+        
+        all_positions = day_positions + net_only
+        
+        if not all_positions:
             print("No positions found")
             return
         
-        print(f"\nTotal positions: {len(day_positions)}\n")
+        print(f"\nTotal positions: {len(all_positions)}")
+        print(f"  Day (MIS): {len(day_positions)}")
+        print(f"  Net (NRML): {len(net_only)}\n")
         
         total_pnl = 0
-        for i, pos in enumerate(day_positions, 1):
-            print(f"{i}. {pos['tradingsymbol']}")
-            print(f"   Quantity: {pos['quantity']}")
-            print(f"   Average Price: ₹{pos['average_price']}")
-            print(f"   Last Price: ₹{pos['last_price']}")
-            print(f"   P&L: ₹{pos['pnl']:.2f}")
-            print(f"   Day Change: {pos['day_change']:.2f}%\n")
-            total_pnl += pos['pnl']
+        
+        if day_positions:
+            print("--- DAY POSITIONS (MIS) ---")
+            for i, pos in enumerate(day_positions, 1):
+                print(f"{i}. {pos['tradingsymbol']}")
+                print(f"   Quantity: {pos['quantity']}")
+                print(f"   Average Price: ₹{pos['average_price']}")
+                print(f"   Last Price: ₹{pos['last_price']}")
+                print(f"   P&L: ₹{pos['pnl']:.2f}")
+                print(f"   Day Change: {pos['day_change']:.2f}%\n")
+                total_pnl += pos['pnl']
+        
+        if net_only:
+            print("--- NET POSITIONS (NRML/Carry-forward) ---")
+            for i, pos in enumerate(net_only, len(day_positions) + 1):
+                print(f"{i}. {pos['tradingsymbol']}")
+                print(f"   Quantity: {pos['quantity']}")
+                print(f"   Average Price: ₹{pos['average_price']}")
+                print(f"   Last Price: ₹{pos['last_price']}")
+                print(f"   P&L: ₹{pos['pnl']:.2f}")
+                print(f"   Day Change: {pos['day_change']:.2f}%\n")
+                total_pnl += pos['pnl']
         
         print(f"Total P&L: ₹{total_pnl:.2f}")
         
     except Exception as e:
         logger.error(f"Failed to fetch positions: {e}")
+
 
 
 def view_holdings(trader):

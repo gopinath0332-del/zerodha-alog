@@ -670,8 +670,11 @@ Token saved. You can now start trading!"""
         if not self.check_auth():
             return
         
-        # Determine which tab is active and refresh accordingly
+        # Refresh all data
         self.load_portfolio_data()
+        self.load_positions_data()
+        self.load_holdings_data()
+        self.load_orders_data()
     
     def refresh_margins(self):
         """Refresh margin data"""
@@ -765,7 +768,18 @@ Token saved. You can now start trading!"""
         def fetch():
             try:
                 positions = self.trader.get_positions()
-                day_pos = [p for p in positions['day'] if p['quantity'] != 0]
+                # Get both day and net positions (net includes NRML/carry-forward positions)
+                day_pos = [p for p in positions.get('day', []) if p['quantity'] != 0]
+                net_pos = [p for p in positions.get('net', []) if p['quantity'] != 0]
+                
+                # Combine both, but avoid duplicates by using tradingsymbol as key
+                all_positions = {}
+                for p in day_pos:
+                    all_positions[p['tradingsymbol']] = p
+                for p in net_pos:
+                    # Net positions take precedence as they show the actual position
+                    if p['tradingsymbol'] not in all_positions or p['quantity'] != 0:
+                        all_positions[p['tradingsymbol']] = p
                 
                 # Clear existing rows
                 if dpg.does_item_exist("positions_table"):
@@ -775,7 +789,7 @@ Token saved. You can now start trading!"""
                             dpg.delete_item(child)
                 
                 # Add position rows
-                for p in day_pos:
+                for symbol, p in all_positions.items():
                     with dpg.table_row(parent="positions_table"):
                         dpg.add_text(p['tradingsymbol'])
                         dpg.add_text(f"{p['quantity']:,}")
