@@ -163,7 +163,7 @@ class ModernTradingGUI:
             dpg.add_separator()
             
             # Tab bar for different views
-            with dpg.tab_bar(tag="main_tabs"):
+            with dpg.tab_bar(tag="main_tabs", callback=self.on_tab_change):
                 
                 # Dashboard Tab
                 with dpg.tab(label="Dashboard"):
@@ -675,6 +675,26 @@ Token saved. You can now start trading!"""
         self.load_positions_data()
         self.load_holdings_data()
         self.load_orders_data()
+    
+    def on_tab_change(self, sender, app_data):
+        """Callback when tab is changed - auto-refresh data"""
+        if not self.is_authenticated:
+            return
+        
+        # Get the current tab label
+        current_tab = dpg.get_item_label(app_data)
+        
+        # Refresh data based on which tab is selected
+        if current_tab == "Portfolio":
+            self.load_portfolio_data()
+        elif current_tab == "Positions":
+            self.load_positions_data()
+        elif current_tab == "Holdings":
+            self.load_holdings_data()
+        elif current_tab == "Orders":
+            self.load_orders_data()
+        elif current_tab == "Margins":
+            self.refresh_margins()
     
     def refresh_margins(self):
         """Refresh margin data"""
