@@ -477,10 +477,10 @@ Select an option from the menu to get started!
                 output += "                     CURRENT POSITIONS\n"
                 output += "="*70 + "\n\n"
                 
-                # Day positions
-                day_pos = [p for p in positions['day'] if p['quantity'] != 0]
+                # Day positions (MIS)
+                day_pos = [p for p in positions.get('day', []) if p['quantity'] != 0]
                 if day_pos:
-                    output += "📊 DAY POSITIONS:\n"
+                    output += "📊 DAY POSITIONS (MIS):\n"
                     output += "-"*70 + "\n"
                     for p in day_pos:
                         output += f"\n{p['tradingsymbol']}\n"
@@ -490,6 +490,26 @@ Select an option from the menu to get started!
                         output += f"({'📈' if p['pnl'] >= 0 else '📉'})\n"
                 else:
                     output += "No day positions\n"
+                
+                output += "\n"
+                
+                # Net positions (NRML, carry-forward)
+                net_pos = [p for p in positions.get('net', []) if p['quantity'] != 0]
+                # Filter out positions already shown in day
+                day_symbols = {p['tradingsymbol'] for p in day_pos}
+                net_only = [p for p in net_pos if p['tradingsymbol'] not in day_symbols]
+                
+                if net_only:
+                    output += "📈 NET POSITIONS (NRML/Carry-forward):\n"
+                    output += "-"*70 + "\n"
+                    for p in net_only:
+                        output += f"\n{p['tradingsymbol']}\n"
+                        output += f"  Qty: {p['quantity']:,} | Avg: ₹{p['average_price']:.2f} | "
+                        output += f"LTP: ₹{p['last_price']:.2f}\n"
+                        output += f"  P&L: {format_currency(p['pnl'])} "
+                        output += f"({'📈' if p['pnl'] >= 0 else '📉'})\n"
+                else:
+                    output += "No net positions\n"
                 
                 output += "\n" + "="*70 + "\n"
                 
