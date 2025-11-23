@@ -78,6 +78,7 @@ class ModernTradingGUI:
         self.callback_server = None
         self.instruments_cache = None  # Cache for instruments list
         self.instruments_cache_time = None  # When cache was created
+        self.instruments_cache_exchange = None  # Which exchange is cached
         self.rsi_monitor_running = False  # Track RSI monitor state
         self.current_rsi_value = None  # Track current RSI value for alerts
         self.current_rsi_symbol = None  # Track symbol being monitored
@@ -1371,20 +1372,25 @@ Capital Required: Rs.{capital_required:,.2f}
             tradingsymbol = symbol
         
         try:
-            # Use cached instruments if available and less than 24 hours old
+            # Use cached instruments if available, less than 24 hours old, AND for the same exchange
             if self.instruments_cache is None or self.instruments_cache_time is None or \
+               self.instruments_cache_exchange != exchange or \
                (time.time() - self.instruments_cache_time) > 86400:
                 # Fetch fresh instruments list for the exchange
                 kite = KiteConnect(api_key=Config.API_KEY)
                 kite.set_access_token(Config.ACCESS_TOKEN)
                 self.instruments_cache = kite.instruments(exchange=exchange)
                 self.instruments_cache_time = time.time()
+                self.instruments_cache_exchange = exchange
                 print(f"[INFO] Fetched fresh {exchange} instruments list from API")
             
             # Search in cache
             for inst in self.instruments_cache:
                 if inst['tradingsymbol'].upper() == tradingsymbol:
                     return int(inst['instrument_token'])
+            
+            # If not found, log what we searched for
+            print(f"[WARNING] Symbol '{tradingsymbol}' not found in {exchange} instruments")
         except Exception as e:
             print(f"Instrument token API lookup error: {e}")
         return None
