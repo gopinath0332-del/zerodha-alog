@@ -78,6 +78,7 @@ class ModernTradingGUI:
         self.callback_server = None
         self.instruments_cache = None  # Cache for instruments list
         self.instruments_cache_time = None  # When cache was created
+        self.instruments_cache_exchange = None  # Which exchange is cached
         self.rsi_monitor_running = False  # Track RSI monitor state
         self.current_rsi_value = None  # Track current RSI value for alerts
         self.current_rsi_symbol = None  # Track symbol being monitored
@@ -319,11 +320,16 @@ class ModernTradingGUI:
                             dpg.add_text("", tag="export_status")
                 
                 # RSI Strategy Tab
-                with dpg.tab(label="RSI Strategy"):
+                with dpg.tab(label="RSI"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("RSI Live Monitor", tag="rsi_title")
                         dpg.add_separator()
-                        dpg.add_input_text(label="Symbol (e.g. NSE:RELIANCE)", tag="rsi_symbol", default_value="NSE:RELIANCE", width=300)
+                        with dpg.group(horizontal=True):
+                            dpg.add_combo(label="Exchange", tag="rsi_exchange", items=["NSE", "MCX", "NCDEX"], default_value="NSE", width=120, callback=self.on_exchange_change)
+                            dpg.add_spacer(width=10)
+                            dpg.add_combo(label="Future", tag="rsi_contract", items=[], width=200, show=False, callback=self.on_contract_change)
+                            dpg.add_spacer(width=10)
+                            dpg.add_input_text(label="Symbol", tag="rsi_symbol", default_value="RELIANCE", width=150)
                         dpg.add_combo(label="Interval", tag="rsi_interval", items=["1hour"], default_value="1hour", width=120)
                         with dpg.group(horizontal=True):
                             dpg.add_button(label="Launch RSI Monitor", tag="rsi_start_btn", callback=self.launch_rsi_monitor)
@@ -1017,10 +1023,105 @@ Capital Required: Rs.{capital_required:,.2f}
             dpg.set_value("export_status", f"Error: {str(e)}")
             dpg.configure_item("export_status", color=(255, 100, 100))
     
+    def on_exchange_change(self):
+        """Handle exchange selection change"""
+        exchange = dpg.get_value("rsi_exchange")
+        
+        # Show/hide future dropdown based on exchange
+        if exchange == "MCX":
+            dpg.configure_item("rsi_contract", show=True)
+            dpg.configure_item("rsi_symbol", show=False)
+            self.load_mcx_futures()
+        elif exchange == "NCDEX":
+            dpg.configure_item("rsi_contract", show=True)
+            dpg.configure_item("rsi_symbol", show=False)
+            self.load_ncdex_futures()
+        else:  # NSE
+            dpg.configure_item("rsi_contract", show=False)
+            dpg.configure_item("rsi_symbol", show=True)
+            dpg.set_value("rsi_symbol", "RELIANCE")
+    
+    def on_contract_change(self):
+        """Handle Future contract selection change"""
+        contract = dpg.get_value("rsi_contract")
+        if contract:
+            dpg.set_value("rsi_symbol", contract)
+    
+    def load_mcx_futures(self):
+        """Load MCX NATGASMINI futures from API"""
+        def fetch_mcx():
+            try:
+                from Core_Modules.config import Config
+                from kiteconnect import KiteConnect
+                import importlib
+                import Core_Modules.config as config_module
+                importlib.reload(config_module)
+                
+                kite = KiteConnect(api_key=Config.API_KEY)
+                kite.set_access_token(Config.ACCESS_TOKEN)
+                
+                instruments = kite.instruments(exchange="MCX")
+                # Get NATGASMINI FUT (futures) only, exclude PE/CE (options)
+                futures = []
+                for inst in instruments:
+                    symbol = inst['tradingsymbol']
+                    instrument_type = inst.get('instrument_type', '')
+                    if 'NATGASMINI' in symbol and instrument_type == 'FUT':
+                        futures.append(symbol)
+                
+                # Sort futures
+                futures = sorted(futures)
+                dpg.configure_item("rsi_contract", items=futures)
+                print(f"[INFO] Loaded {len(futures)} NATGASMINI futures")
+            except Exception as e:
+                print(f"[ERROR] Failed to load MCX futures: {e}")
+                dpg.configure_item("rsi_contract", items=["Error loading futures"])
+        
+        threading.Thread(target=fetch_mcx, daemon=True).start()
+    
+    def load_ncdex_futures(self):
+        """Load NCDEX futures from API"""
+        def fetch_ncdex():
+            try:
+                from Core_Modules.config import Config
+                from kiteconnect import KiteConnect
+                import importlib
+                import Core_Modules.config as config_module
+                importlib.reload(config_module)
+                
+                kite = KiteConnect(api_key=Config.API_KEY)
+                kite.set_access_token(Config.ACCESS_TOKEN)
+                
+                instruments = kite.instruments(exchange="NCDEX")
+                # Get all NCDEX FUT (futures) only, exclude PE/CE (options)
+                futures = []
+                for inst in instruments:
+                    symbol = inst['tradingsymbol']
+                    instrument_type = inst.get('instrument_type', '')
+                    if instrument_type == 'FUT':
+                        futures.append(symbol)
+                
+                # Sort futures
+                futures = sorted(futures)
+                dpg.configure_item("rsi_contract", items=futures)
+                print(f"[INFO] Loaded {len(futures)} NCDEX futures")
+            except Exception as e:
+                print(f"[ERROR] Failed to load NCDEX futures: {e}")
+                dpg.configure_item("rsi_contract", items=["Error loading futures"])
+        
+        threading.Thread(target=fetch_ncdex, daemon=True).start()
+    
     def launch_rsi_monitor(self):
         """Start live RSI monitoring for selected symbol and interval"""
-        symbol = dpg.get_value("rsi_symbol")
+        exchange = dpg.get_value("rsi_exchange")
+        symbol_input = dpg.get_value("rsi_symbol").strip().upper()
         interval = dpg.get_value("rsi_interval")
+        
+        # For NSE, prepend exchange prefix. For MCX/NCDEX, use symbol as-is
+        if exchange == "NSE":
+            symbol = f"{exchange}:{symbol_input}"
+        else:
+            symbol = symbol_input
         
         if self.rsi_monitor_running:
             dpg.set_value("rsi_status", "Monitor already running. Stop it first.")
@@ -1032,22 +1133,20 @@ Capital Required: Rs.{capital_required:,.2f}
         dpg.configure_item("rsi_stop_btn", show=True)
         
         dpg.set_value("rsi_status", f"Launching RSI monitor for {symbol} ({interval})...")
-        dpg.configure_item("rsi_status", color=(100,200,255))
-        
         def rsi_worker():
             import time
             from kiteconnect import KiteConnect
             from Core_Modules.config import Config
             import pandas as pd
+            from datetime import datetime, timedelta
+            import pytz
             
             print(f"\n{'='*60}")
             print(f"RSI Monitor Started")
             print(f"Symbol: {symbol} | Interval: {interval}")
             print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"{'='*60}\n")
-            
             try:
-                # Always reload token from .env before each API call
                 import importlib
                 import Core_Modules.config as config_module
                 importlib.reload(config_module)
@@ -1055,16 +1154,32 @@ Capital Required: Rs.{capital_required:,.2f}
                 access_token = config_module.Config.ACCESS_TOKEN
                 kite = KiteConnect(api_key=api_key)
                 kite.set_access_token(access_token)
-                # Zerodha uses period=14, close price, Wilder's smoothing
                 period = 14
                 last_alert = "--"
-                first_run = True  # Track first iteration to send start alert with RSI
-                
-                while self.rsi_monitor_running:
-                    # Check if monitoring was stopped
-                    if not self.rsi_monitor_running:
-                        break
-                    
+                first_run = True
+                ist = pytz.timezone('Asia/Kolkata')
+                # Calculate time to next market hour boundary
+                def next_market_hour_boundary(now):
+                    # Determine market based on exchange
+                    exchange = dpg.get_value("rsi_exchange")
+                    if exchange == "MCX" or exchange == "NCDEX":
+                        # Commodities: next check at next whole hour (10:00, 11:00, etc.)
+                        if now.minute == 0:
+                            # Already at :00, go to next hour
+                            next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                        else:
+                            # Go to next whole hour
+                            next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                        return next_boundary
+                    else:  # NSE
+                        # Stocks: next check at next :15 mark (10:15, 11:15, etc.)
+                        if now.minute < 15:
+                            return now.replace(minute=15, second=0, microsecond=0)
+                        else:
+                            next_hour = now.hour + 1
+                            return now.replace(hour=next_hour, minute=15, second=0, microsecond=0)
+                # Immediate analysis on start
+                def do_rsi_analysis():
                     # Resolve instrument token
                     instrument_token = self._resolve_instrument_token(symbol)
                     if not instrument_token:
@@ -1072,10 +1187,8 @@ Capital Required: Rs.{capital_required:,.2f}
                         print(f"[ERROR] Instrument token not found for {symbol}")
                         dpg.set_value("rsi_status", f"Instrument token not found for {symbol}")
                         dpg.configure_item("rsi_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFF0000)  # Red
-                        return
-                    
-                    # Fetch last 100+ 1-hour candles (fetch 30 days to ensure 100+ candles)
+                        self._send_discord_alert(error_msg, color=0xFF0000)
+                        return False
                     data = kite.historical_data(
                         instrument_token=instrument_token,
                         from_date=(datetime.now()-pd.Timedelta(days=30)).strftime('%Y-%m-%d'),
@@ -1088,69 +1201,43 @@ Capital Required: Rs.{capital_required:,.2f}
                         print(f"[WARNING] No data received from API")
                         dpg.set_value("rsi_status", "No data found or API error.")
                         dpg.configure_item("rsi_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFFA500)  # Orange
+                        self._send_discord_alert(error_msg, color=0xFFA500)
                         time.sleep(60)
-                        continue
-                    
-                    # Ensure timezone is IST and exclude incomplete candle
-                    import pytz
-                    ist = pytz.timezone('Asia/Kolkata')
+                        return False
                     df['date'] = pd.to_datetime(df['date'])
-                    # Convert to IST (handle both tz-aware and tz-naive)
                     if df['date'].dt.tz is None:
                         df['date'] = df['date'].dt.tz_localize('UTC').dt.tz_convert(ist)
                     else:
                         df['date'] = df['date'].dt.tz_convert(ist)
-                    
-                    # Don't exclude the last candle - Kite API returns only completed candles
-                    # The last candle in the response is the most recent completed 1-hour candle
-                    
-                    # Use at least 100 candles for SMA initialization
                     if len(df) < 100:
                         error_msg = f"**Symbol:** {symbol}\n**Error:** Not enough candles ({len(df)}/100)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         print(f"[WARNING] Not enough candles: {len(df)} (need 100+)")
                         dpg.set_value("rsi_status", "Not enough historical candles (need 100+)")
                         dpg.configure_item("rsi_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFFA500)  # Orange
-                        return
-                    
+                        self._send_discord_alert(error_msg, color=0xFFA500)
+                        return False
                     close = df['close']
-                    
-                    # Calculate RSI using Wilder's smoothing (exponential moving average)
-                    # This matches Zerodha's RSI calculation
                     delta = close.diff()
                     gain = delta.where(delta > 0, 0)
                     loss = -delta.where(delta < 0, 0)
-                    
-                    # First average is simple mean over period
                     avg_gain = gain.rolling(window=period, min_periods=period).mean()
                     avg_loss = loss.rolling(window=period, min_periods=period).mean()
-                    
-                    # Subsequent values use Wilder's smoothing: (previous avg * 13 + current value) / 14
                     for i in range(period, len(gain)):
                         avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period - 1) + gain.iloc[i]) / period
                         avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period - 1) + loss.iloc[i]) / period
-                    
                     rs = avg_gain / avg_loss
                     rsi = 100 - (100 / (1 + rs))
                     current_rsi = float(rsi.iloc[-1])
-                    
-                    # Store current RSI value for stop alerts
                     self.current_rsi_value = current_rsi
                     self.current_rsi_symbol = symbol
-                    
                     current_time = datetime.now().strftime('%H:%M:%S')
                     print(f"[{current_time}] RSI: {current_rsi:.2f} | Last Candle: {df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M')} | Close: {close.iloc[-1]:.2f}")
-                    
                     dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
-                    
-                    # Send start alert with initial RSI on first run
+                    nonlocal first_run, last_alert
                     if first_run:
                         start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**RSI:** {current_rsi:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        self._send_discord_alert(start_msg, color=0x3498DB)  # Blue
+                        self._send_discord_alert(start_msg, color=0x3498DB)
                         first_run = False
-                    
-                    # Alert logic
                     if current_rsi > 70:
                         last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S')}"
                         alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
@@ -1160,7 +1247,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         print(f"{'*'*60}\n")
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(255,100,100))
-                        self._send_discord_alert(alert_msg, color=0xFF5733)  # Red
+                        self._send_discord_alert(alert_msg, color=0xFF5733)
                         self._play_alert_sound()
                     elif current_rsi < 30:
                         last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S')}"
@@ -1171,30 +1258,45 @@ Capital Required: Rs.{capital_required:,.2f}
                         print(f"{'*'*60}\n")
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(100,255,100))
-                        self._send_discord_alert(alert_msg, color=0x33FF57)  # Green
+                        self._send_discord_alert(alert_msg, color=0x33FF57)
                         self._play_alert_sound()
                     else:
                         dpg.set_value("rsi_last_alert", last_alert)
-                    
                     dpg.set_value("rsi_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
                     dpg.configure_item("rsi_status", color=(150,150,150))
-                    time.sleep(60*5)  # Check every 5 minutes
+                    return True
+                # Immediate analysis
+                if self.rsi_monitor_running:
+                    do_rsi_analysis()
+                # Schedule next checks at :15 mark
+                while self.rsi_monitor_running:
+                    now = datetime.now(ist)
+                    next_boundary = next_market_hour_boundary(now)
+                    wait_seconds = (next_boundary - now).total_seconds()
+                    if wait_seconds > 0:
+                        dpg.set_value("rsi_status", f"Waiting for next market hour boundary: {next_boundary.strftime('%H:%M')}")
+                        dpg.configure_item("rsi_status", color=(200,200,100))
+                        time.sleep(wait_seconds)
+                    if not self.rsi_monitor_running:
+                        break
+                    do_rsi_analysis()
             except Exception as e:
                 error_msg = f"**Symbol:** {symbol}\n**Error:** {str(e)}\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 print(f"[ERROR] RSI Monitor Exception: {str(e)}")
                 dpg.set_value("rsi_status", f"Error: {str(e)}")
                 dpg.configure_item("rsi_status", color=(255,100,100))
-                self._send_discord_alert(error_msg, color=0xFF0000)  # Red
+                self._send_discord_alert(error_msg, color=0xFF0000)
             finally:
-                # Reset state when monitoring stops
                 rsi_info = f"\n**RSI:** {self.current_rsi_value:.2f}" if self.current_rsi_value else ""
                 stop_msg = f"**Symbol:** {symbol}{rsi_info}\n**Status:** Monitor Stopped (Thread Exit)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 print(f"\n{'='*60}")
                 print(f"RSI Monitor Stopped")
                 print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                 print(f"{'='*60}\n")
-                self._send_discord_alert(stop_msg, color=0x808080)  # Gray
+                self._send_discord_alert(stop_msg, color=0x808080)
                 self.rsi_monitor_running = False
+                dpg.configure_item("rsi_start_btn", show=True)
+                dpg.configure_item("rsi_stop_btn", show=False)
                 dpg.configure_item("rsi_start_btn", show=True)
                 dpg.configure_item("rsi_stop_btn", show=False)
         
@@ -1254,26 +1356,41 @@ Capital Required: Rs.{capital_required:,.2f}
         import time
         
         symbol = symbol.strip().upper()
+        
+        # Determine exchange from symbol format
         if symbol.startswith("NSE:"):
+            exchange = "NSE"
             tradingsymbol = symbol.split(":")[1]
         else:
+            # For MCX/NCDEX, determine exchange from symbol patterns
+            if 'NATGASMINI' in symbol:
+                exchange = "MCX"
+            elif any(x in symbol for x in ['WHEAT', 'COTTON', 'SOY', 'SUGAR', 'JEERA']):
+                exchange = "NCDEX"
+            else:
+                exchange = "MCX"  # Default to MCX for commodity symbols
             tradingsymbol = symbol
         
         try:
-            # Use cached instruments if available and less than 24 hours old
+            # Use cached instruments if available, less than 24 hours old, AND for the same exchange
             if self.instruments_cache is None or self.instruments_cache_time is None or \
+               self.instruments_cache_exchange != exchange or \
                (time.time() - self.instruments_cache_time) > 86400:
-                # Fetch fresh instruments list
+                # Fetch fresh instruments list for the exchange
                 kite = KiteConnect(api_key=Config.API_KEY)
                 kite.set_access_token(Config.ACCESS_TOKEN)
-                self.instruments_cache = kite.instruments(exchange="NSE")
+                self.instruments_cache = kite.instruments(exchange=exchange)
                 self.instruments_cache_time = time.time()
-                print("[INFO] Fetched fresh instruments list from API")
+                self.instruments_cache_exchange = exchange
+                print(f"[INFO] Fetched fresh {exchange} instruments list from API")
             
             # Search in cache
             for inst in self.instruments_cache:
                 if inst['tradingsymbol'].upper() == tradingsymbol:
                     return int(inst['instrument_token'])
+            
+            # If not found, log what we searched for
+            print(f"[WARNING] Symbol '{tradingsymbol}' not found in {exchange} instruments")
         except Exception as e:
             print(f"Instrument token API lookup error: {e}")
         return None
