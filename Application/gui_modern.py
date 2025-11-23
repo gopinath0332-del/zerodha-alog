@@ -319,11 +319,16 @@ class ModernTradingGUI:
                             dpg.add_text("", tag="export_status")
                 
                 # RSI Strategy Tab
-                with dpg.tab(label="RSI Strategy"):
+                with dpg.tab(label="RSI"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("RSI Live Monitor", tag="rsi_title")
                         dpg.add_separator()
-                        dpg.add_input_text(label="Symbol (e.g. NSE:RELIANCE)", tag="rsi_symbol", default_value="NSE:RELIANCE", width=300)
+                        with dpg.group(horizontal=True):
+                            dpg.add_combo(label="Exchange", tag="rsi_exchange", items=["NSE", "MCX", "NCDEX"], default_value="NSE", width=120, callback=self.on_exchange_change)
+                            dpg.add_spacer(width=10)
+                            dpg.add_combo(label="Future", tag="rsi_contract", items=[], width=200, show=False, callback=self.on_contract_change)
+                            dpg.add_spacer(width=10)
+                            dpg.add_input_text(label="Symbol", tag="rsi_symbol", default_value="RELIANCE", width=150)
                         dpg.add_combo(label="Interval", tag="rsi_interval", items=["1hour"], default_value="1hour", width=120)
                         with dpg.group(horizontal=True):
                             dpg.add_button(label="Launch RSI Monitor", tag="rsi_start_btn", callback=self.launch_rsi_monitor)
@@ -1017,10 +1022,105 @@ Capital Required: Rs.{capital_required:,.2f}
             dpg.set_value("export_status", f"Error: {str(e)}")
             dpg.configure_item("export_status", color=(255, 100, 100))
     
+    def on_exchange_change(self):
+        """Handle exchange selection change"""
+        exchange = dpg.get_value("rsi_exchange")
+        
+        # Show/hide future dropdown based on exchange
+        if exchange == "MCX":
+            dpg.configure_item("rsi_contract", show=True)
+            dpg.configure_item("rsi_symbol", show=False)
+            self.load_mcx_futures()
+        elif exchange == "NCDEX":
+            dpg.configure_item("rsi_contract", show=True)
+            dpg.configure_item("rsi_symbol", show=False)
+            self.load_ncdex_futures()
+        else:  # NSE
+            dpg.configure_item("rsi_contract", show=False)
+            dpg.configure_item("rsi_symbol", show=True)
+            dpg.set_value("rsi_symbol", "RELIANCE")
+    
+    def on_contract_change(self):
+        """Handle Future contract selection change"""
+        contract = dpg.get_value("rsi_contract")
+        if contract:
+            dpg.set_value("rsi_symbol", contract)
+    
+    def load_mcx_futures(self):
+        """Load MCX NATGASMINI futures from API"""
+        def fetch_mcx():
+            try:
+                from Core_Modules.config import Config
+                from kiteconnect import KiteConnect
+                import importlib
+                import Core_Modules.config as config_module
+                importlib.reload(config_module)
+                
+                kite = KiteConnect(api_key=Config.API_KEY)
+                kite.set_access_token(Config.ACCESS_TOKEN)
+                
+                instruments = kite.instruments(exchange="MCX")
+                # Get NATGASMINI FUT (futures) only, exclude PE/CE (options)
+                futures = []
+                for inst in instruments:
+                    symbol = inst['tradingsymbol']
+                    instrument_type = inst.get('instrument_type', '')
+                    if 'NATGASMINI' in symbol and instrument_type == 'FUT':
+                        futures.append(symbol)
+                
+                # Sort futures
+                futures = sorted(futures)
+                dpg.configure_item("rsi_contract", items=futures)
+                print(f"[INFO] Loaded {len(futures)} NATGASMINI futures")
+            except Exception as e:
+                print(f"[ERROR] Failed to load MCX futures: {e}")
+                dpg.configure_item("rsi_contract", items=["Error loading futures"])
+        
+        threading.Thread(target=fetch_mcx, daemon=True).start()
+    
+    def load_ncdex_futures(self):
+        """Load NCDEX futures from API"""
+        def fetch_ncdex():
+            try:
+                from Core_Modules.config import Config
+                from kiteconnect import KiteConnect
+                import importlib
+                import Core_Modules.config as config_module
+                importlib.reload(config_module)
+                
+                kite = KiteConnect(api_key=Config.API_KEY)
+                kite.set_access_token(Config.ACCESS_TOKEN)
+                
+                instruments = kite.instruments(exchange="NCDEX")
+                # Get all NCDEX FUT (futures) only, exclude PE/CE (options)
+                futures = []
+                for inst in instruments:
+                    symbol = inst['tradingsymbol']
+                    instrument_type = inst.get('instrument_type', '')
+                    if instrument_type == 'FUT':
+                        futures.append(symbol)
+                
+                # Sort futures
+                futures = sorted(futures)
+                dpg.configure_item("rsi_contract", items=futures)
+                print(f"[INFO] Loaded {len(futures)} NCDEX futures")
+            except Exception as e:
+                print(f"[ERROR] Failed to load NCDEX futures: {e}")
+                dpg.configure_item("rsi_contract", items=["Error loading futures"])
+        
+        threading.Thread(target=fetch_ncdex, daemon=True).start()
+    
     def launch_rsi_monitor(self):
         """Start live RSI monitoring for selected symbol and interval"""
-        symbol = dpg.get_value("rsi_symbol")
+        exchange = dpg.get_value("rsi_exchange")
+        symbol_input = dpg.get_value("rsi_symbol").strip().upper()
         interval = dpg.get_value("rsi_interval")
+        
+        # For NSE, prepend exchange prefix. For MCX/NCDEX, use symbol as-is
+        if exchange == "NSE":
+            symbol = f"{exchange}:{symbol_input}"
+        else:
+            symbol = symbol_input
         
         if self.rsi_monitor_running:
             dpg.set_value("rsi_status", "Monitor already running. Stop it first.")
@@ -1244,21 +1344,31 @@ Capital Required: Rs.{capital_required:,.2f}
         import time
         
         symbol = symbol.strip().upper()
+        
+        # Determine exchange from symbol format
         if symbol.startswith("NSE:"):
+            exchange = "NSE"
             tradingsymbol = symbol.split(":")[1]
         else:
+            # For MCX/NCDEX, determine exchange from symbol patterns
+            if 'NATGASMINI' in symbol:
+                exchange = "MCX"
+            elif any(x in symbol for x in ['WHEAT', 'COTTON', 'SOY', 'SUGAR', 'JEERA']):
+                exchange = "NCDEX"
+            else:
+                exchange = "MCX"  # Default to MCX for commodity symbols
             tradingsymbol = symbol
         
         try:
             # Use cached instruments if available and less than 24 hours old
             if self.instruments_cache is None or self.instruments_cache_time is None or \
                (time.time() - self.instruments_cache_time) > 86400:
-                # Fetch fresh instruments list
+                # Fetch fresh instruments list for the exchange
                 kite = KiteConnect(api_key=Config.API_KEY)
                 kite.set_access_token(Config.ACCESS_TOKEN)
-                self.instruments_cache = kite.instruments(exchange="NSE")
+                self.instruments_cache = kite.instruments(exchange=exchange)
                 self.instruments_cache_time = time.time()
-                print("[INFO] Fetched fresh instruments list from API")
+                print(f"[INFO] Fetched fresh {exchange} instruments list from API")
             
             # Search in cache
             for inst in self.instruments_cache:
