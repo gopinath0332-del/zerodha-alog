@@ -4,12 +4,11 @@ Handles login flow and session generation
 """
 from kiteconnect import KiteConnect
 from .config import Config
+from .logger import get_logger
 import webbrowser
-import logging
 import os
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class KiteAuth:
@@ -32,14 +31,14 @@ class KiteAuth:
             str: Login URL
         """
         login_url = self.kite.login_url()
-        logger.info(f"Login URL: {login_url}")
+        logger.info("login_url_generated", url=login_url)
         return login_url
     
     def open_login_page(self):
         """Open login page in browser"""
         login_url = self.get_login_url()
         webbrowser.open(login_url)
-        logger.info("Login page opened in browser")
+        logger.info("login_page_opened")
         return login_url
     
     def generate_session(self, request_token):
@@ -57,17 +56,20 @@ class KiteAuth:
             self.access_token = data['access_token']
             self.kite.set_access_token(self.access_token)
             
-            logger.info("Session generated successfully")
-            logger.info(f"Access Token: {self.access_token}")
-            logger.info(f"User ID: {data.get('user_id')}")
-            logger.info(f"User Name: {data.get('user_name')}")
+            self.kite.set_access_token(self.access_token)
+            
+            logger.info(
+                "session_generated",
+                user_id=data.get('user_id'),
+                user_name=data.get('user_name')
+            )
             
             # Save access token to .env file
             self._save_access_token(self.access_token)
             
             return data
         except Exception as e:
-            logger.error(f"Session generation failed: {e}")
+            logger.error("session_generation_failed", error=str(e), exc_info=True)
             raise
     
     def _save_access_token(self, access_token):
@@ -103,9 +105,9 @@ class KiteAuth:
             with open(env_file, 'w') as f:
                 f.writelines(lines)
             
-            logger.info("Access token saved to .env file")
+            logger.info("access_token_saved")
         except Exception as e:
-            logger.warning(f"Could not save access token to .env: {e}")
+            logger.warning("access_token_save_failed", error=str(e))
     
     def get_kite_instance(self):
         """
@@ -127,10 +129,10 @@ class KiteAuth:
         """
         try:
             profile = self.kite.profile()
-            logger.info(f"Profile: {profile}")
+            logger.info("profile_fetched", user_id=profile.get('user_id'), name=profile.get('user_name'))
             return profile
         except Exception as e:
-            logger.error(f"Failed to fetch profile: {e}")
+            logger.error("profile_fetch_failed", error=str(e), exc_info=True)
             raise
 
 
@@ -140,24 +142,21 @@ if __name__ == "__main__":
     
     # If no access token, perform login flow
     if not auth.access_token:
-        print("\n=== Zerodha Kite Connect Authentication ===")
-        print("\n1. Opening login page in browser...")
+        logger.info("starting_authentication")
+        logger.info("opening_login_page")
         auth.open_login_page()
         
-        print("\n2. After successful login, you will be redirected to the callback URL")
-        print("   Copy the 'request_token' from the URL")
-        print("   Example: http://127.0.0.1:5000/callback?request_token=XXXXXXXX&action=login&status=success")
+        logger.info("waiting_for_callback")
+        logger.info("copy_request_token_instruction")
         
         request_token = input("\n3. Enter the request_token: ").strip()
         
         if request_token:
             data = auth.generate_session(request_token)
-            print(f"\n✓ Authentication successful!")
-            print(f"  Access Token: {data['access_token']}")
-            print(f"  User ID: {data.get('user_id')}")
+            logger.info("authentication_successful", user_id=data.get('user_id'))
         else:
-            print("No request token provided. Exiting.")
+            logger.error("no_request_token_provided")
     else:
-        print("Access token already available. Testing connection...")
+        logger.info("access_token_available")
         profile = auth.get_profile()
-        print(f"✓ Connected as: {profile.get('user_name')} ({profile.get('email')})")
+        logger.info("connected", user_name=profile.get('user_name'), email=profile.get('email'))

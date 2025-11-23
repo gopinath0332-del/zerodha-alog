@@ -25,6 +25,9 @@ from Core_Modules.utils import (
     export_positions_to_csv,
     export_holdings_to_csv
 )
+from Core_Modules.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 # Global variable to store request token from callback
@@ -656,7 +659,7 @@ Token saved. You can now start trading!"""
             with open(env_file, 'w') as f:
                 f.writelines(lines)
         except Exception as e:
-            print(f"Warning: Could not save token: {e}")
+            logger.warning("token_save_failed", error=str(e))
     
     def check_auth(self):
         """Check if authenticated"""
@@ -741,7 +744,7 @@ Token saved. You can now start trading!"""
                                 f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
                 
             except Exception as e:
-                print(f"Error loading margins: {e}")
+                logger.error("margins_load_failed", error=str(e), exc_info=True)
                 if dpg.does_item_exist("margins_last_update"):
                     dpg.set_value("margins_last_update", f"Error: {str(e)}")
                     dpg.configure_item("margins_last_update", color=(255, 100, 100))
@@ -776,7 +779,7 @@ Token saved. You can now start trading!"""
                 dpg.configure_item("pnl_holdings", color=color_holdings)
                 
             except Exception as e:
-                print(f"Error loading portfolio: {e}")
+                logger.error("portfolio_load_failed", error=str(e), exc_info=True)
         
         threading.Thread(target=fetch, daemon=True).start()
     
@@ -819,7 +822,7 @@ Token saved. You can now start trading!"""
                         dpg.add_text(f"Rs.{p['pnl']:.2f}", color=pnl_color)
                 
             except Exception as e:
-                print(f"Error loading positions: {e}")
+                logger.error("positions_load_failed", error=str(e), exc_info=True)
         
         threading.Thread(target=fetch, daemon=True).start()
     
@@ -855,7 +858,7 @@ Token saved. You can now start trading!"""
                         dpg.add_text(f"Rs.{h['pnl']:.2f}", color=pnl_color)
                 
             except Exception as e:
-                print(f"Error loading holdings: {e}")
+                logger.error("holdings_load_failed", error=str(e), exc_info=True)
         
         threading.Thread(target=fetch, daemon=True).start()
     
@@ -886,7 +889,7 @@ Token saved. You can now start trading!"""
                         dpg.add_text(order['status'])
                 
             except Exception as e:
-                print(f"Error loading orders: {e}")
+                logger.error("orders_load_failed", error=str(e), exc_info=True)
         
         threading.Thread(target=fetch, daemon=True).start()
     
@@ -1140,9 +1143,9 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Auto-select first one
                     dpg.set_value("rsi_contract", futures[0])
                     self.on_contract_change()
-                print(f"[INFO] Loaded {len(futures)} NATGASMINI futures")
+                logger.info("natgasmini_futures_loaded", count=len(futures))
             except Exception as e:
-                print(f"[ERROR] Failed to load NATGASMINI futures: {e}")
+                logger.error("natgasmini_futures_load_failed", error=str(e), exc_info=True)
                 dpg.configure_item("rsi_contract", items=["Error loading futures"])
         
         threading.Thread(target=fetch_natgasmini, daemon=True).start()
@@ -1176,9 +1179,9 @@ Capital Required: Rs.{capital_required:,.2f}
                 # Sort futures
                 futures = sorted(futures)
                 dpg.configure_item("rsi_contract", items=futures)
-                print(f"[INFO] Loaded {len(futures)} NCDEX futures")
+                logger.info("ncdex_futures_loaded", count=len(futures))
             except Exception as e:
-                print(f"[ERROR] Failed to load NCDEX futures: {e}")
+                logger.error("ncdex_futures_load_failed", error=str(e), exc_info=True)
                 dpg.configure_item("rsi_contract", items=["Error loading futures"])
         
         threading.Thread(target=fetch_ncdex, daemon=True).start()
@@ -1212,9 +1215,9 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Auto-select first one
                     dpg.set_value("donchian_contract", goldpetal_futures[0])
                     self.on_donchian_contract_change()
-                print(f"[INFO] Loaded {len(goldpetal_futures)} GOLDPETAL futures")
+                logger.info("goldpetal_futures_loaded", count=len(goldpetal_futures))
             except Exception as e:
-                print(f"[ERROR] Failed to load GOLDPETAL futures: {e}")
+                logger.error("goldpetal_futures_load_failed", error=str(e), exc_info=True)
                 dpg.configure_item("donchian_contract", items=["Error loading futures"])
         
         threading.Thread(target=fetch_goldpetal, daemon=True).start()
@@ -1252,11 +1255,11 @@ Capital Required: Rs.{capital_required:,.2f}
             from datetime import datetime, timedelta
             import pytz
             
-            print(f"\n{'='*60}")
-            print(f"RSI Monitor Started")
-            print(f"Symbol: {symbol} | Interval: {interval}")
-            print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"{'='*60}\n")
+            logger.info(
+                "rsi_monitor_started",
+                symbol=symbol,
+                interval=interval
+            )
             try:
                 import importlib
                 import Core_Modules.config as config_module
@@ -1285,7 +1288,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     instrument_token = self._resolve_instrument_token(symbol)
                     if not instrument_token:
                         error_msg = f"**Symbol:** {symbol}\n**Error:** Instrument token not found\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"[ERROR] Instrument token not found for {symbol}")
+                        logger.error("instrument_token_not_found", symbol=symbol)
                         dpg.set_value("rsi_status", f"Instrument token not found for {symbol}")
                         dpg.configure_item("rsi_status", color=(255,100,100))
                         self._send_discord_alert(error_msg, color=0xFF0000)
@@ -1299,7 +1302,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     df = pd.DataFrame(data)
                     if df.empty or 'close' not in df:
                         error_msg = f"**Symbol:** {symbol}\n**Error:** No data received from API\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"[WARNING] No data received from API")
+                        logger.warning("no_data_received_from_api")
                         dpg.set_value("rsi_status", "No data found or API error.")
                         dpg.configure_item("rsi_status", color=(255,100,100))
                         self._send_discord_alert(error_msg, color=0xFFA500)
@@ -1312,7 +1315,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         df['date'] = df['date'].dt.tz_convert(ist)
                     if len(df) < 100:
                         error_msg = f"**Symbol:** {symbol}\n**Error:** Not enough candles ({len(df)}/100)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"[WARNING] Not enough candles: {len(df)} (need 100+)")
+                        logger.warning("not_enough_candles", count=len(df), required=100)
                         dpg.set_value("rsi_status", "Not enough historical candles (need 100+)")
                         dpg.configure_item("rsi_status", color=(255,100,100))
                         self._send_discord_alert(error_msg, color=0xFFA500)
@@ -1332,7 +1335,12 @@ Capital Required: Rs.{capital_required:,.2f}
                     self.current_rsi_value = current_rsi
                     self.current_rsi_symbol = symbol
                     current_time = datetime.now().strftime('%H:%M:%S')
-                    print(f"[{current_time}] RSI: {current_rsi:.2f} | Last Candle: {df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M')} | Close: {close.iloc[-1]:.2f}")
+                    logger.info(
+                        "rsi_update",
+                        rsi=round(current_rsi, 2),
+                        last_candle=df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M'),
+                        close=round(close.iloc[-1], 2)
+                    )
                     dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
                     nonlocal first_run, last_alert
                     if first_run:
@@ -1342,10 +1350,12 @@ Capital Required: Rs.{capital_required:,.2f}
                     if current_rsi > 70:
                         last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S')}"
                         alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"\n{'*'*60}")
-                        print(f"ALERT: RSI OVERBOUGHT! RSI = {current_rsi:.2f} (> 70)")
-                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                        print(f"{'*'*60}\n")
+                        logger.warning(
+                            "rsi_alert_overbought",
+                            symbol=symbol,
+                            rsi=round(current_rsi, 2),
+                            threshold=70
+                        )
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(255,100,100))
                         self._send_discord_alert(alert_msg, color=0xFF5733)
@@ -1353,10 +1363,12 @@ Capital Required: Rs.{capital_required:,.2f}
                     elif current_rsi < 30:
                         last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S')}"
                         alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"\n{'*'*60}")
-                        print(f"ALERT: RSI OVERSOLD! RSI = {current_rsi:.2f} (< 30)")
-                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                        print(f"{'*'*60}\n")
+                        logger.warning(
+                            "rsi_alert_oversold",
+                            symbol=symbol,
+                            rsi=round(current_rsi, 2),
+                            threshold=30
+                        )
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(100,255,100))
                         self._send_discord_alert(alert_msg, color=0x33FF57)
@@ -1383,17 +1395,14 @@ Capital Required: Rs.{capital_required:,.2f}
                     do_rsi_analysis()
             except Exception as e:
                 error_msg = f"**Symbol:** {symbol}\n**Error:** {str(e)}\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                print(f"[ERROR] RSI Monitor Exception: {str(e)}")
+                logger.error("rsi_monitor_exception", error=str(e), exc_info=True)
                 dpg.set_value("rsi_status", f"Error: {str(e)}")
                 dpg.configure_item("rsi_status", color=(255,100,100))
                 self._send_discord_alert(error_msg, color=0xFF0000)
             finally:
                 rsi_info = f"\n**RSI:** {self.current_rsi_value:.2f}" if self.current_rsi_value else ""
                 stop_msg = f"**Symbol:** {symbol}{rsi_info}\n**Status:** Monitor Stopped (Thread Exit)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                print(f"\n{'='*60}")
-                print(f"RSI Monitor Stopped")
-                print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                print(f"{'='*60}\n")
+                logger.info("rsi_monitor_stopped", symbol=symbol)
                 self._send_discord_alert(stop_msg, color=0x808080)
                 self.rsi_monitor_running = False
                 dpg.configure_item("rsi_start_btn", show=True)
@@ -1405,7 +1414,7 @@ Capital Required: Rs.{capital_required:,.2f}
     
     def stop_rsi_monitor(self):
         """Stop the RSI monitoring"""
-        print(f"[INFO] User requested to stop RSI monitor")
+        logger.info("rsi_monitor_stop_requested")
         self.rsi_monitor_running = False
         
         # Send Discord alert for manual stop with current RSI
@@ -1448,12 +1457,13 @@ Capital Required: Rs.{capital_required:,.2f}
             from datetime import datetime, timedelta
             import pytz
             
-            print(f"\n{'='*60}")
-            print(f"Donchian Channel Monitor Started")
-            print(f"Symbol: {symbol} | Interval: {interval}")
-            print(f"Upper Period: {upper_period} | Lower Period: {lower_period}")
-            print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"{'='*60}\n")
+            logger.info(
+                "donchian_monitor_started",
+                symbol=symbol,
+                interval=interval,
+                upper_period=upper_period,
+                lower_period=lower_period
+            )
             
             try:
                 import importlib
@@ -1483,7 +1493,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     instrument_token = self._resolve_instrument_token(symbol)
                     if not instrument_token:
                         error_msg = f"**Symbol:** {symbol}\n**Error:** Instrument token not found\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"[ERROR] Instrument token not found for {symbol}")
+                        logger.error("instrument_token_not_found", symbol=symbol)
                         dpg.set_value("donchian_status", f"Instrument token not found for {symbol}")
                         dpg.configure_item("donchian_status", color=(255,100,100))
                         self._send_discord_alert(error_msg, color=0xFF0000)
@@ -1500,7 +1510,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     
                     if df.empty or 'high' not in df or 'low' not in df or 'close' not in df:
                         error_msg = f"**Symbol:** {symbol}\n**Error:** No data received from API\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"[WARNING] No data received from API")
+                        logger.warning("no_data_received_from_api")
                         dpg.set_value("donchian_status", "No data found or API error.")
                         dpg.configure_item("donchian_status", color=(255,100,100))
                         self._send_discord_alert(error_msg, color=0xFFA500)
@@ -1517,7 +1527,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     if len(df) < max(upper_period, lower_period):
                         required = max(upper_period, lower_period)
                         error_msg = f"**Symbol:** {symbol}\n**Error:** Not enough candles ({len(df)}/{required})\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"[WARNING] Not enough candles: {len(df)} (need {required}+)")
+                        logger.warning("not_enough_candles", count=len(df), required=required)
                         dpg.set_value("donchian_status", f"Not enough historical candles (need {required}+)")
                         dpg.configure_item("donchian_status", color=(255,100,100))
                         self._send_discord_alert(error_msg, color=0xFFA500)
@@ -1538,7 +1548,12 @@ Capital Required: Rs.{capital_required:,.2f}
                     self.current_donchian_symbol = symbol
                     
                     current_time = datetime.now().strftime('%H:%M:%S')
-                    print(f"[{current_time}] Price: {current_price:.2f} | Upper: {upper_band:.2f} | Lower: {lower_band:.2f}")
+                    logger.info(
+                        "donchian_update",
+                        price=round(current_price, 2),
+                        upper=round(upper_band, 2),
+                        lower=round(lower_band, 2)
+                    )
                     
                     dpg.set_value("donchian_current_price", f"Current Price: {current_price:.2f}")
                     dpg.set_value("donchian_upper_band", f"Upper Band: {upper_band:.2f}")
@@ -1553,10 +1568,12 @@ Capital Required: Rs.{capital_required:,.2f}
                     if current_price > upper_band:
                         last_alert = f"BREAKOUT ABOVE at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
                         alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Status:** BULLISH BREAKOUT (Price > Upper Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"\n{'*'*60}")
-                        print(f"ALERT: BULLISH BREAKOUT! Price = {current_price:.2f} > {upper_band:.2f}")
-                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                        print(f"{'*'*60}\n")
+                        logger.warning(
+                            "donchian_alert_bullish_breakout",
+                            symbol=symbol,
+                            price=round(current_price, 2),
+                            upper_band=round(upper_band, 2)
+                        )
                         dpg.set_value("donchian_last_alert", last_alert)
                         dpg.configure_item("donchian_last_alert", color=(100,255,100))
                         self._send_discord_alert(alert_msg, color=0x33FF57)
@@ -1564,10 +1581,12 @@ Capital Required: Rs.{capital_required:,.2f}
                     elif current_price < lower_band:
                         last_alert = f"BREAKDOWN BELOW at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
                         alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** BEARISH BREAKDOWN (Price < Lower Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        print(f"\n{'*'*60}")
-                        print(f"ALERT: BEARISH BREAKDOWN! Price = {current_price:.2f} < {lower_band:.2f}")
-                        print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                        print(f"{'*'*60}\n")
+                        logger.warning(
+                            "donchian_alert_bearish_breakout",
+                            symbol=symbol,
+                            price=round(current_price, 2),
+                            lower_band=round(lower_band, 2)
+                        )
                         dpg.set_value("donchian_last_alert", last_alert)
                         dpg.configure_item("donchian_last_alert", color=(255,100,100))
                         self._send_discord_alert(alert_msg, color=0xFF5733)
@@ -1598,17 +1617,14 @@ Capital Required: Rs.{capital_required:,.2f}
             
             except Exception as e:
                 error_msg = f"**Symbol:** {symbol}\n**Error:** {str(e)}\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                print(f"[ERROR] Donchian Monitor Exception: {str(e)}")
+                logger.error("donchian_monitor_exception", error=str(e), exc_info=True)
                 dpg.set_value("donchian_status", f"Error: {str(e)}")
                 dpg.configure_item("donchian_status", color=(255,100,100))
                 self._send_discord_alert(error_msg, color=0xFF0000)
             finally:
                 price_info = f"**Price:** {self.current_donchian_price:.2f}\n" if self.current_donchian_price else ""
                 stop_msg = f"**Symbol:** {symbol}\n{price_info}**Status:** Monitor Stopped (Thread Exit)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                print(f"\n{'='*60}")
-                print(f"Donchian Channel Monitor Stopped")
-                print(f"Symbol: {symbol} | Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                print(f"{'='*60}\n")
+                logger.info("donchian_monitor_stopped", symbol=symbol)
                 self._send_discord_alert(stop_msg, color=0x808080)
                 self.donchian_monitor_running = False
                 dpg.configure_item("donchian_start_btn", show=True)
@@ -1618,7 +1634,7 @@ Capital Required: Rs.{capital_required:,.2f}
     
     def stop_donchian_monitor(self):
         """Stop the Donchian Channel monitoring"""
-        print(f"[INFO] User requested to stop Donchian monitor")
+        logger.info("donchian_monitor_stop_requested")
         self.donchian_monitor_running = False
         
         # Send Discord alert for manual stop
@@ -1646,11 +1662,11 @@ Capital Required: Rs.{capital_required:,.2f}
             }
             response = requests.post(self.discord_webhook_url, json=embed, timeout=5)
             if response.status_code == 204:
-                print(f"[INFO] Discord alert sent successfully")
+                logger.info("discord_alert_sent", status="success")
             else:
-                print(f"[WARNING] Discord alert failed: {response.status_code}")
+                logger.warning("discord_alert_failed", status_code=response.status_code)
         except Exception as e:
-            print(f"[ERROR] Failed to send Discord alert: {str(e)}")
+            logger.error("discord_alert_error", error=str(e), exc_info=True)
     
     def _play_alert_sound(self):
         """Play alert sound (cross-platform)"""
@@ -1696,18 +1712,19 @@ Capital Required: Rs.{capital_required:,.2f}
                 self.instruments_cache = kite.instruments(exchange=exchange)
                 self.instruments_cache_time = time.time()
                 self.instruments_cache_exchange = exchange
-                print(f"[INFO] Fetched fresh {exchange} instruments list from API")
+                logger.info("instruments_list_fetched", exchange=exchange, source="api")
             
             # Search in cache
             for inst in self.instruments_cache:
                 if inst['tradingsymbol'].upper() == tradingsymbol:
                     return int(inst['instrument_token'])
             
-            # If not found, log what we searched for
-            print(f"[WARNING] Symbol '{tradingsymbol}' not found in {exchange} instruments")
+            logger.warning("symbol_not_found_in_instruments", symbol=tradingsymbol, exchange=exchange)
+            return None
+            
         except Exception as e:
-            print(f"Instrument token API lookup error: {e}")
-        return None
+            logger.error("instrument_token_lookup_failed", error=str(e), exc_info=True)
+            return None
     
     def run(self):
         """Run the application"""
