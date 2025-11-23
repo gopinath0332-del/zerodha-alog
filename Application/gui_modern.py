@@ -149,6 +149,14 @@ class ModernTradingGUI:
         
         # Set global font scaling for 4K displays
         dpg.set_global_font_scale(1.5)
+
+        # Theme for active monitors (Green tab)
+        with dpg.theme(tag="active_monitor_theme"):
+            with dpg.theme_component(dpg.mvTab):
+                dpg.add_theme_color(dpg.mvThemeCol_Tab, (0, 100, 0))
+                dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (0, 150, 0))
+                dpg.add_theme_color(dpg.mvThemeCol_TabActive, (0, 120, 0))
+                dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255))
     
     def setup_ui(self):
         """Setup the main user interface"""
@@ -330,7 +338,7 @@ class ModernTradingGUI:
                             dpg.add_text("", tag="export_status")
                 
                 # NatgasMini RSI Monitor Tab
-                with dpg.tab(label="NatgasMini"):
+                with dpg.tab(label="NatgasMini", tag="tab_natgasmini"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("RSI Live Monitor - NATGASMINI", tag="rsi_title")
                         dpg.add_separator()
@@ -353,7 +361,7 @@ class ModernTradingGUI:
                         dpg.add_text("Note: RSI matches Zerodha chart (period=14, close)", color=(150,255,150))
                 
                 # GOLDPETAL Donchian Channel Tab
-                with dpg.tab(label="GOLDPETAL"):
+                with dpg.tab(label="GOLDPETAL", tag="tab_goldpetal"):
                     with dpg.child_window(height=-1):
                         dpg.add_text("Donchian Channel Strategy Monitor", tag="donchian_title")
                         dpg.add_separator()
@@ -1247,6 +1255,10 @@ Capital Required: Rs.{capital_required:,.2f}
         dpg.configure_item("rsi_stop_btn", show=True)
         
         dpg.set_value("rsi_status", f"Launching RSI monitor for {symbol} ({interval})...")
+        
+        # Set tab color to green to indicate running
+        dpg.bind_item_theme("tab_natgasmini", "active_monitor_theme")
+        
         def rsi_worker():
             import time
             from kiteconnect import KiteConnect
@@ -1407,8 +1419,8 @@ Capital Required: Rs.{capital_required:,.2f}
                 self.rsi_monitor_running = False
                 dpg.configure_item("rsi_start_btn", show=True)
                 dpg.configure_item("rsi_stop_btn", show=False)
-                dpg.configure_item("rsi_start_btn", show=True)
-                dpg.configure_item("rsi_stop_btn", show=False)
+                # Reset tab color
+                dpg.bind_item_theme("tab_natgasmini", 0)  # 0 unbinds the theme
         
         threading.Thread(target=rsi_worker, daemon=True).start()
     
@@ -1427,6 +1439,8 @@ Capital Required: Rs.{capital_required:,.2f}
         dpg.configure_item("rsi_status", color=(255,150,0))
         dpg.configure_item("rsi_start_btn", show=True)
         dpg.configure_item("rsi_stop_btn", show=False)
+        # Reset tab color
+        dpg.bind_item_theme("tab_natgasmini", 0)  # 0 unbinds the theme
     
     def launch_donchian_monitor(self):
         """Start live Donchian Channel monitoring"""
@@ -1448,6 +1462,9 @@ Capital Required: Rs.{capital_required:,.2f}
         dpg.configure_item("donchian_stop_btn", show=True)
         
         dpg.set_value("donchian_status", f"Launching Donchian monitor for {symbol} ({interval})...")
+        
+        # Set tab color to green to indicate running
+        dpg.bind_item_theme("tab_goldpetal", "active_monitor_theme")
         
         def donchian_worker():
             import time
@@ -1647,6 +1664,8 @@ Capital Required: Rs.{capital_required:,.2f}
         dpg.configure_item("donchian_status", color=(255,150,0))
         dpg.configure_item("donchian_start_btn", show=True)
         dpg.configure_item("donchian_stop_btn", show=False)
+        # Reset tab color
+        dpg.bind_item_theme("tab_goldpetal", 0)  # 0 unbinds the theme
     
     def _send_discord_alert(self, message, color=0xFF5733):
         """Send alert to Discord webhook"""
