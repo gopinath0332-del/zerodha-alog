@@ -102,6 +102,11 @@ my-trade-py/
 │   ├── PROJECT_OVERVIEW.md # Detailed project overview
 │   ├── GUI_GUIDE.md       # GUI application guide
 │   ├── AUTO_AUTH_SETUP.md # Automated auth setup guide
+│   ├── DONCHIAN_STRATEGY_GUIDE.md # Donchian strategy documentation
+│   ├── STRUCTURE.md       # Detailed project structure
+│   ├── QUICK_REFERENCE.md # Quick command reference
+│   ├── BUGFIX_POSITIONS.md # Positions tab bug fix documentation
+│   ├── ENHANCEMENT_AUTO_REFRESH.md # Auto-refresh feature documentation
 │   └── GUI-Comparision.jpg # GUI comparison screenshot
 │
 ├── launcher.py            # CLI launcher script
@@ -109,9 +114,7 @@ my-trade-py/
 ├── run_gui_modern.sh      # Modern GUI launcher (DearPyGui)
 ├── run_gui.sh             # Legacy GUI launcher (tkinter)
 ├── test_minimal.py        # DearPyGui minimal test script
-├── STRUCTURE.md           # Detailed project structure
-├── QUICK_REFERENCE.md     # Quick command reference
-└── DONCHIAN_STRATEGY_GUIDE.md # Donchian strategy documentation
+└── README.md              # This file - Project overview
 ```
 
 ## 🚀 Quick Start
@@ -354,9 +357,11 @@ For detailed documentation, see:
 - **Project Overview**: `Documentation/PROJECT_OVERVIEW.md`
 - **GUI Guide**: `Documentation/GUI_GUIDE.md`
 - **Auto Auth Setup**: `Documentation/AUTO_AUTH_SETUP.md`
-- **Donchian Strategy Guide**: `DONCHIAN_STRATEGY_GUIDE.md`
-- **Project Structure**: `STRUCTURE.md`
-- **Quick Reference**: `QUICK_REFERENCE.md`
+- **Donchian Strategy Guide**: `Documentation/DONCHIAN_STRATEGY_GUIDE.md`
+- **Project Structure**: `Documentation/STRUCTURE.md`
+- **Quick Reference**: `Documentation/QUICK_REFERENCE.md`
+- **Bug Fixes**: `Documentation/BUGFIX_POSITIONS.md`
+- **Enhancements**: `Documentation/ENHANCEMENT_AUTO_REFRESH.md`
 
 ## 🆕 Recent Updates
 
