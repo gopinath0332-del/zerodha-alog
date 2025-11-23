@@ -2,11 +2,65 @@
 
 Automated trading system for Zerodha using the KiteConnect API with advanced RSI monitoring and Discord alerts.
 
+## 📑 Table of Contents
+
+- [Key Features](#-key-features)
+- [Project Structure](#-project-structure)
+- [Quick Start](#-quick-start)
+- [Project Statistics](#-project-statistics)
+- [Modern Trading Terminal](#️-modern-trading-terminal-dearpygui)
+- [Authentication](#-authentication)
+- [Strategy Usage](#-strategy-usage)
+- [Classic GUI](#️-classic-gui-tkinter)
+- [Documentation](#-documentation)
+- [Recent Updates](#-recent-updates)
+- [Important Notes](#️-important-notes)
+- [Troubleshooting](#-troubleshooting)
+- [API Documentation](#-api-documentation)
+
+---
+
+## ✨ Key Features
+
+### Trading Capabilities
+
+- 📊 **Market Data**: Real-time quotes, LTP, OHLC, historical data
+- 💹 **Order Management**: Market, Limit, Stop Loss orders
+- 📈 **Portfolio Tracking**: Positions, holdings, margins, P&L
+- ⚡ **WebSocket Streaming**: Real-time tick-by-tick data
+- 🔐 **Auto Authentication**: OAuth flow with callback server
+
+### Strategy Monitoring
+
+- 📉 **RSI Strategy**: Automated RSI calculation with overbought/oversold alerts
+- 📊 **Donchian Channels**: Breakout/breakdown detection for trend analysis
+- 🎯 **Commodity Focus**: Dedicated monitors for NATGASMINI and GOLDPETAL
+- ⏰ **Hourly Analysis**: Market boundary-aligned monitoring
+- 🔔 **Discord Alerts**: Rich webhook notifications for all signals
+- 🎵 **Sound Alerts**: Audio notifications for important events
+
+### User Interfaces
+
+- 🖥️ **Modern GUI**: DearPyGui-based professional trading terminal
+- 🎨 **Dark Theme**: Optimized for extended trading sessions
+- 📊 **Multiple Tabs**: Dashboard, Positions, Orders, Strategies, Settings
+- 🖼️ **Classic GUI**: tkinter-based alternative interface
+- 💻 **CLI Application**: Interactive command-line interface
+- 🚀 **Launcher Menu**: Easy access to all features
+
+### Developer Tools
+
+- 📝 **Example Scripts**: Basic orders, limit orders, websocket streaming
+- 🔧 **Utility Functions**: Position sizing, portfolio analysis, CSV export
+- 📚 **Comprehensive Docs**: 12 documentation files covering all aspects
+- 🧪 **Test Scripts**: GUI testing and setup verification
+
 ## 📁 Project Structure
 
 ```
 my-trade-py/
-├── Core_Modules/          # Core trading modules
+├── Core_Modules/          # Core trading modules (active)
+│   ├── __init__.py
 │   ├── config.py          # Configuration settings
 │   ├── auth.py            # Authentication & session management
 │   ├── trader.py          # Main trading operations
@@ -14,19 +68,24 @@ my-trade-py/
 │   ├── strategies.py      # Trading strategies
 │   └── utils.py           # Utility functions
 │
+├── Core Modules/          # Legacy directory (deprecated, use Core_Modules)
+│   ├── auth.py            # Older versions of core files
+│   ├── trader.py
+│   ├── strategies.py
+│   ├── utils.py
+│   └── websocket_ticker.py
+│
 ├── Application/           # Main applications
-│   ├── gui_modern.py      # Modern DearPyGui trading terminal with RSI
-│   ├── gui_components/    # Modular GUI components
-│   │   ├── auth_handler.py    # OAuth callback handler
-│   │   ├── theme_config.py    # UI theme configuration
-│   │   ├── rsi_monitor.py     # RSI strategy monitoring
-│   │   └── data_loaders.py    # Data loading utilities
+│   ├── __init__.py
+│   ├── gui_modern.py      # Modern DearPyGui trading terminal
+│   ├── gui_components/    # GUI components directory (reserved)
 │   ├── gui.py             # Legacy tkinter GUI
 │   ├── main.py            # Interactive CLI application
 │   ├── authenticate.py    # Authentication script
 │   └── verify_setup.py    # Setup verification script
 │
 ├── Examples/              # Example scripts
+│   ├── __init__.py
 │   ├── basic_order.py     # Basic trading examples
 │   ├── limit_order.py     # Limit orders with stop loss
 │   └── websocket_stream.py # WebSocket streaming demo
@@ -35,19 +94,24 @@ my-trade-py/
 │   ├── requirements.txt   # Python dependencies
 │   ├── .env               # Environment variables (API keys)
 │   ├── .env.example       # Environment template
-│   └── .gitignore         # Git ignore rules
+│   └── instruments_nse.csv # Cached NSE instruments
 │
 ├── Documentation/         # Documentation
 │   ├── README.md          # Main documentation
 │   ├── QUICKSTART.md      # Quick start guide
 │   ├── PROJECT_OVERVIEW.md # Detailed project overview
 │   ├── GUI_GUIDE.md       # GUI application guide
-│   └── AUTO_AUTH_SETUP.md # Automated auth setup guide
+│   ├── AUTO_AUTH_SETUP.md # Automated auth setup guide
+│   └── GUI-Comparision.jpg # GUI comparison screenshot
 │
 ├── launcher.py            # CLI launcher script
 ├── run.sh                 # Main launcher wrapper
 ├── run_gui_modern.sh      # Modern GUI launcher (DearPyGui)
-└── run_gui.sh             # Legacy GUI launcher (tkinter)
+├── run_gui.sh             # Legacy GUI launcher (tkinter)
+├── test_minimal.py        # DearPyGui minimal test script
+├── STRUCTURE.md           # Detailed project structure
+├── QUICK_REFERENCE.md     # Quick command reference
+└── DONCHIAN_STRATEGY_GUIDE.md # Donchian strategy documentation
 ```
 
 ## 🚀 Quick Start
@@ -57,6 +121,14 @@ my-trade-py/
 ```bash
 pip3.9 install -r Configuration/requirements.txt
 ```
+
+**Dependencies installed:**
+
+- `kiteconnect` - Zerodha KiteConnect API SDK
+- `python-dotenv` - Environment variable management
+- `pandas` - Data analysis and manipulation
+- `requests` - HTTP library for Discord webhooks
+- `dearpygui` - Modern GPU-accelerated GUI framework
 
 ### 2. Configure API Credentials
 
@@ -77,11 +149,13 @@ The launcher provides easy access to all features:
 
 1. **Verify Setup** - Check your environment
 2. **Authenticate** - First time / Daily login
-3. **Start Trading Application** - Launch Modern GUI
+3. **Start Trading Application** - Launch CLI trading app
 4. **Run Basic Order Example** - Test basic operations
 5. **Run Limit Order Example** - Test limit orders
 6. **Run WebSocket Stream Example** - Test live data
 7. **Exit**
+
+**Note:** To launch the Modern GUI, use `./run_gui_modern.sh` directly.
 
 ### Alternative: Direct Commands
 
@@ -105,7 +179,17 @@ python3.9 Examples/basic_order.py
 python3.9 Examples/websocket_stream.py
 ```
 
-## 🖥️ Modern Trading Terminal (DearPyGui)
+## � Project Statistics
+
+- **Python Files**: 24 modules
+- **Documentation Files**: 12 markdown files
+- **Shell Scripts**: 3 launcher scripts
+- **Total Lines of Code**: ~6,600+ lines
+- **Core Modules**: 7 files (auth, config, trader, websocket, strategies, utils)
+- **GUI Applications**: 2 (Modern DearPyGui + Legacy tkinter)
+- **Example Scripts**: 3 (basic orders, limit orders, websocket streaming)
+
+## �🖥️ Modern Trading Terminal (DearPyGui)
 
 Launch the professional trading interface:
 
@@ -156,15 +240,6 @@ Both monitors send rich alerts for:
 - 🔴 **Bearish Alerts** (NatgasMini/GOLDPETAL) - Red embeds
 - ⚪ **Monitor Stopped** - Final values included
 - 🔴 **Error Alerts** - Any issues during monitoring
-
-### Modular Architecture
-
-The GUI is now optimized with modular components:
-
-- `gui_components/auth_handler.py` - OAuth callback handling
-- `gui_components/theme_config.py` - Theme configuration
-- `gui_components/rsi_monitor.py` - Complete RSI monitoring system
-- `gui_components/data_loaders.py` - All data loading logic
 
 ## 🔐 Authentication
 
@@ -235,11 +310,18 @@ See `Documentation/AUTO_AUTH_SETUP.md` for detailed setup.
 
 ### Discord Webhook Setup
 
-Configure your Discord webhook URL in `Application/gui_modern.py`:
+Configure your Discord webhook URL in `Application/gui_modern.py` (line 88):
 
 ```python
 self.discord_webhook_url = "YOUR_WEBHOOK_URL_HERE"
 ```
+
+**How to get a Discord webhook URL:**
+
+1. Open Discord and go to your server
+2. Right-click on a channel → Edit Channel → Integrations
+3. Create a new webhook and copy the URL
+4. Paste it in the code above
 
 ## 🖼️ Classic GUI (tkinter)
 
@@ -261,6 +343,8 @@ The classic GUI provides:
 
 See `Documentation/GUI_GUIDE.md` for detailed GUI usage.
 
+**Visual Comparison:** See `Documentation/GUI-Comparision.jpg` for a side-by-side comparison of both GUIs.
+
 ## 📚 Documentation
 
 For detailed documentation, see:
@@ -268,8 +352,11 @@ For detailed documentation, see:
 - **Quick Start Guide**: `Documentation/QUICKSTART.md`
 - **Full Documentation**: `Documentation/README.md`
 - **Project Overview**: `Documentation/PROJECT_OVERVIEW.md`
+- **GUI Guide**: `Documentation/GUI_GUIDE.md`
 - **Auto Auth Setup**: `Documentation/AUTO_AUTH_SETUP.md`
 - **Donchian Strategy Guide**: `DONCHIAN_STRATEGY_GUIDE.md`
+- **Project Structure**: `STRUCTURE.md`
+- **Quick Reference**: `QUICK_REFERENCE.md`
 
 ## 🆕 Recent Updates
 
@@ -279,13 +366,11 @@ For detailed documentation, see:
   - Auto-loaded futures dropdown from MCX
   - Hourly market boundary checks
   - Real-time RSI calculation with Discord alerts
-  
 - ✅ **GOLDPETAL Donchian Tab** - GOLDPETAL futures trend analysis
   - Donchian Channel with fixed band periods (Upper: 20, Lower: 10)
   - Auto-loaded futures dropdown from MCX
   - Bullish/Bearish breakout/breakdown detection
   - Real-time Discord alerts with rich embeds
-  
 - ✅ **Commodity-Focused UI** - Simplified, dedicated monitoring interfaces
   - Tab names reflect underlying commodity
   - No exchange selection (always MCX)
@@ -299,7 +384,6 @@ For detailed documentation, see:
 - ✅ Accurate RSI calculation using Wilder's smoothing
 - ✅ Current RSI value included in all messages
 - ✅ Comprehensive logging and error handling
-- ✅ Modular GUI architecture for better maintainability
 - ✅ 24-hour instrument caching for performance
 
 ### GUI Improvements
@@ -318,6 +402,8 @@ For detailed documentation, see:
 - **Stop Losses**: Use proper risk management in all trades
 - **RSI Monitoring**: Requires authenticated session and valid symbols
 - **Python Version**: Use Python 3.9 (`python3.9`) for all commands
+- **Directory Structure**: Use `Core_Modules/` (with underscore) - the `Core Modules/` directory is legacy/deprecated
+- **Discord Webhook**: Configure webhook URL in `Application/gui_modern.py` line 88 for alerts
 
 ## 🔧 Troubleshooting
 
@@ -327,7 +413,7 @@ If the GUI appears blank:
 
 1. Ensure DearPyGui is installed: `pip3.9 install dearpygui`
 2. Check Python version: `python3.9 --version` (should be 3.9.x)
-3. Run test: `python3.9 test_gui.py`
+3. Run test: `python3.9 test_minimal.py`
 4. Check terminal for errors
 
 ### Strategy Monitoring Issues
