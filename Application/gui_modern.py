@@ -105,6 +105,8 @@ class ModernTradingGUI:
         # Try to authenticate on startup (after UI is set up)
         threading.Timer(0.1, self.authenticate).start()
         threading.Timer(0.2, self.show_welcome).start()
+        # Load NATGASMINI futures for NatgasMini tab
+        threading.Timer(0.3, self.load_natgasmini_futures).start()
         # Load GOLDPETAL futures for Donchian tab
         threading.Timer(0.3, self.load_goldpetal_futures).start()
     
@@ -327,14 +329,12 @@ class ModernTradingGUI:
                 # NatgasMini RSI Monitor Tab
                 with dpg.tab(label="NatgasMini"):
                     with dpg.child_window(height=-1):
-                        dpg.add_text("RSI Live Monitor", tag="rsi_title")
+                        dpg.add_text("RSI Live Monitor - NATGASMINI", tag="rsi_title")
                         dpg.add_separator()
                         with dpg.group(horizontal=True):
-                            dpg.add_combo(label="Exchange", tag="rsi_exchange", items=["NSE", "MCX", "NCDEX"], default_value="NSE", width=120, callback=self.on_exchange_change)
+                            dpg.add_combo(label="Future", tag="rsi_contract", items=[], width=200, callback=self.on_contract_change)
                             dpg.add_spacer(width=10)
-                            dpg.add_combo(label="Future", tag="rsi_contract", items=[], width=200, show=False, callback=self.on_contract_change)
-                            dpg.add_spacer(width=10)
-                            dpg.add_input_text(label="Symbol", tag="rsi_symbol", default_value="RELIANCE", width=150)
+                            dpg.add_input_text(label="Symbol", tag="rsi_symbol", default_value="NATGASMINI", width=150)
                         dpg.add_combo(label="Interval", tag="rsi_interval", items=["1hour"], default_value="1hour", width=120)
                         with dpg.group(horizontal=True):
                             dpg.add_button(label="Launch RSI Monitor", tag="rsi_start_btn", callback=self.launch_rsi_monitor)
@@ -1077,9 +1077,9 @@ Capital Required: Rs.{capital_required:,.2f}
         if contract:
             dpg.set_value("rsi_symbol", contract)
     
-    def load_mcx_futures(self):
-        """Load MCX NATGASMINI futures from API"""
-        def fetch_mcx():
+    def load_natgasmini_futures(self):
+        """Load NATGASMINI futures from MCX API"""
+        def fetch_natgasmini():
             try:
                 from Core_Modules.config import Config
                 from kiteconnect import KiteConnect
@@ -1102,12 +1102,20 @@ Capital Required: Rs.{capital_required:,.2f}
                 # Sort futures
                 futures = sorted(futures)
                 dpg.configure_item("rsi_contract", items=futures)
+                if futures:
+                    # Auto-select first one
+                    dpg.set_value("rsi_contract", futures[0])
+                    self.on_contract_change()
                 print(f"[INFO] Loaded {len(futures)} NATGASMINI futures")
             except Exception as e:
-                print(f"[ERROR] Failed to load MCX futures: {e}")
+                print(f"[ERROR] Failed to load NATGASMINI futures: {e}")
                 dpg.configure_item("rsi_contract", items=["Error loading futures"])
         
-        threading.Thread(target=fetch_mcx, daemon=True).start()
+        threading.Thread(target=fetch_natgasmini, daemon=True).start()
+    
+    def load_mcx_futures(self):
+        """Load MCX NATGASMINI futures from API (for backward compatibility)"""
+        self.load_natgasmini_futures()
     
     def load_ncdex_futures(self):
         """Load NCDEX futures from API"""
@@ -1184,16 +1192,13 @@ Capital Required: Rs.{capital_required:,.2f}
             dpg.set_value("donchian_symbol", contract)
     
     def launch_rsi_monitor(self):
-        """Start live RSI monitoring for selected symbol and interval"""
-        exchange = dpg.get_value("rsi_exchange")
+        """Start live RSI monitoring for NATGASMINI"""
         symbol_input = dpg.get_value("rsi_symbol").strip().upper()
         interval = dpg.get_value("rsi_interval")
         
-        # For NSE, prepend exchange prefix. For MCX/NCDEX, use symbol as-is
-        if exchange == "NSE":
-            symbol = f"{exchange}:{symbol_input}"
-        else:
-            symbol = symbol_input
+        # NATGASMINI is always on MCX exchange, use symbol as-is
+        symbol = symbol_input
+        exchange = "MCX"
         
         if self.rsi_monitor_running:
             dpg.set_value("rsi_status", "Monitor already running. Stop it first.")
@@ -1232,24 +1237,14 @@ Capital Required: Rs.{capital_required:,.2f}
                 ist = pytz.timezone('Asia/Kolkata')
                 # Calculate time to next market hour boundary
                 def next_market_hour_boundary(now):
-                    # Determine market based on exchange
-                    exchange = dpg.get_value("rsi_exchange")
-                    if exchange == "MCX" or exchange == "NCDEX":
-                        # Commodities: next check at next whole hour (10:00, 11:00, etc.)
-                        if now.minute == 0:
-                            # Already at :00, go to next hour
-                            next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-                        else:
-                            # Go to next whole hour
-                            next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-                        return next_boundary
-                    else:  # NSE
-                        # Stocks: next check at next :15 mark (10:15, 11:15, etc.)
-                        if now.minute < 15:
-                            return now.replace(minute=15, second=0, microsecond=0)
-                        else:
-                            next_hour = now.hour + 1
-                            return now.replace(hour=next_hour, minute=15, second=0, microsecond=0)
+                    # NATGASMINI is on MCX: next check at next whole hour (10:00, 11:00, etc.)
+                    if now.minute == 0:
+                        # Already at :00, go to next hour
+                        next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                    else:
+                        # Go to next whole hour
+                        next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                    return next_boundary
                 # Immediate analysis on start
                 def do_rsi_analysis():
                     # Resolve instrument token
