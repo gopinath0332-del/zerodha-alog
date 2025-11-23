@@ -126,25 +126,35 @@ Launch the professional trading interface:
 - 🛠️ **Trading Tools** - Position sizing calculator
 - 💾 **Data Export** - CSV export functionality
 
-### RSI Strategy Monitor (NEW!)
+### Commodity Strategy Monitors
+
+#### NatgasMini Tab - RSI Strategy
 
 - 📉 **Live RSI Calculation** - Using Wilder's smoothing method (period=14)
 - 🔔 **Discord Webhook Alerts** - Real-time notifications for all events
-- ⏰ **Customizable Intervals** - Hour, day, 15-minute candles
+- ⏰ **1-Hour Analysis Intervals** - MCX commodity market boundaries
 - 🎯 **Threshold Alerts** - Overbought (>70) and Oversold (<30) detection
-- 📊 **Accurate RSI Values** - Matches Zerodha chart exactly
-- 🔄 **Auto-Refresh** - Checks every 5 minutes
-- 📝 **Comprehensive Logging** - All RSI values and events logged
 - 🎵 **Sound Alerts** - Cross-platform alert sounds
+- 📊 **Auto-Loaded Futures** - NATGASMINI contracts auto-populated from MCX
+
+#### GOLDPETAL Tab - Donchian Channel Strategy
+
+- 📊 **Donchian Channel Analysis** - Upper band (20 periods) and Lower band (10 periods)
+- 🔔 **Discord Webhook Alerts** - Breakout and breakdown notifications
+- ⏰ **1-Hour Analysis Intervals** - MCX commodity market boundaries
+- 📈 **Bullish Breakout Alerts** - Price crosses above upper band
+- 📉 **Bearish Breakdown Alerts** - Price crosses below lower band
+- 🎵 **Sound Alerts** - Instant audio notification on signal
+- 📊 **Auto-Loaded Futures** - GOLDPETAL contracts auto-populated from MCX
 
 ### Discord Integration
 
-The RSI monitor sends alerts for:
+Both monitors send rich alerts for:
 
-- 🟢 **Monitor Started** - Initial RSI value included
-- 🔴 **Overbought Alert** - RSI > 70 (red alert)
-- 🟢 **Oversold Alert** - RSI < 30 (green alert)
-- ⚪ **Monitor Stopped** - Final RSI value included
+- 🟢 **Monitor Started** - Initial values included
+- 🟢 **Bullish Alerts** (NatgasMini/GOLDPETAL) - Green embeds
+- 🔴 **Bearish Alerts** (NatgasMini/GOLDPETAL) - Red embeds
+- ⚪ **Monitor Stopped** - Final values included
 - 🔴 **Error Alerts** - Any issues during monitoring
 
 ### Modular Architecture
@@ -181,7 +191,35 @@ python3.9 Application/authenticate.py
 
 See `Documentation/AUTO_AUTH_SETUP.md` for detailed setup.
 
-## 📈 RSI Strategy Usage
+## 📈 Strategy Usage
+
+### NatgasMini RSI Monitor
+
+1. **Launch GUI**: `./run_gui_modern.sh`
+2. **Go to NatgasMini Tab**
+3. **Select Future**:
+   - Click "Future" dropdown to select NATGASMINI contract
+   - Symbol auto-updates
+4. **Start Monitoring**: Click "Launch RSI Monitor"
+5. **Monitor**:
+   - View current RSI value in real-time
+   - Receive Discord alerts for overbought/oversold signals
+6. **Stop**: Click "Stop Monitor" when done
+
+### GOLDPETAL Donchian Channel Monitor
+
+1. **Launch GUI**: `./run_gui_modern.sh`
+2. **Go to GOLDPETAL Tab**
+3. **Select Future**:
+   - Click "Future" dropdown to select GOLDPETAL contract
+   - Symbol auto-updates
+4. **Start Monitoring**: Click "Launch Donchian Monitor"
+5. **Monitor**:
+   - View current price, upper band, lower band in real-time
+   - Receive Discord alerts for breakouts/breakdowns
+6. **Stop**: Click "Stop Monitor" when done
+
+## 📈 Old RSI Strategy Usage
 
 1. **Launch GUI**: `./run_gui_modern.sh`
 2. **Go to RSI Strategy Tab**
@@ -200,12 +238,8 @@ See `Documentation/AUTO_AUTH_SETUP.md` for detailed setup.
 Configure your Discord webhook URL in `Application/gui_modern.py`:
 
 ```python
-self.rsi_monitor = RSIMonitor(
-    discord_webhook_url="YOUR_WEBHOOK_URL_HERE"
-)
+self.discord_webhook_url = "YOUR_WEBHOOK_URL_HERE"
 ```
-
-Or update in `gui_components/rsi_monitor.py` for centralized configuration.
 
 ## 🖼️ Classic GUI (tkinter)
 
@@ -235,8 +269,28 @@ For detailed documentation, see:
 - **Full Documentation**: `Documentation/README.md`
 - **Project Overview**: `Documentation/PROJECT_OVERVIEW.md`
 - **Auto Auth Setup**: `Documentation/AUTO_AUTH_SETUP.md`
+- **Donchian Strategy Guide**: `DONCHIAN_STRATEGY_GUIDE.md`
 
 ## 🆕 Recent Updates
+
+### Donchian Channel Strategy Branch (feature/donchain)
+
+- ✅ **NatgasMini RSI Tab** - Dedicated NATGASMINI futures monitoring
+  - Auto-loaded futures dropdown from MCX
+  - Hourly market boundary checks
+  - Real-time RSI calculation with Discord alerts
+  
+- ✅ **GOLDPETAL Donchian Tab** - GOLDPETAL futures trend analysis
+  - Donchian Channel with fixed band periods (Upper: 20, Lower: 10)
+  - Auto-loaded futures dropdown from MCX
+  - Bullish/Bearish breakout/breakdown detection
+  - Real-time Discord alerts with rich embeds
+  
+- ✅ **Commodity-Focused UI** - Simplified, dedicated monitoring interfaces
+  - Tab names reflect underlying commodity
+  - No exchange selection (always MCX)
+  - Futures auto-selected on startup
+  - Symbol fields auto-update from dropdown selection
 
 ### RSI Strategy Branch (feature/rsi)
 
@@ -276,17 +330,25 @@ If the GUI appears blank:
 3. Run test: `python3.9 test_gui.py`
 4. Check terminal for errors
 
-### RSI Monitoring Issues
+### Strategy Monitoring Issues
 
-1. Verify symbol is correct (e.g., `RELIANCE`, not `RELIANCE.NSE`)
+1. Verify commodity symbol is correct (e.g., `GOLDPETAL`, `NATGASMINI25DECFUT`)
 2. Ensure you're authenticated
 3. Check Discord webhook URL is configured
 4. Review terminal logs for errors
+5. Verify MCX market is open during trading hours
+
+### Futures Not Loading
+
+1. Check authentication is valid
+2. Verify MCX exchange has available contracts
+3. Check network connectivity
+4. Restart the application to reload futures
 
 ### Authentication Problems
 
 1. Check API credentials in `.env`
-2. Ensure callback server port 8080 is available
+2. Ensure callback server port 5000 is available
 3. Try manual authentication: `python3.9 Application/authenticate.py`
 
 ## 📖 API Documentation
