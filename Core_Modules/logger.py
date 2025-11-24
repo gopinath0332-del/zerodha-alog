@@ -21,6 +21,24 @@ def setup_logging(log_level="INFO", log_file=None):
     Returns:
         Configured structlog logger
     """
+    # Custom processor for float formatting, spacing, and value color
+    def custom_log_formatter(logger, method_name, event_dict):
+        formatted = {}
+        for k, v in event_dict.items():
+            # Format floats to two decimals
+            if isinstance(v, float):
+                v = f"{v:.2f}"
+            # Format numpy floats
+            try:
+                import numpy as np
+                if isinstance(v, (np.float32, np.float64)):
+                    v = f"{float(v):.2f}"
+            except ImportError:
+                pass
+            formatted[k] = v
+        # Add space between variable and value in output
+        # This is for ConsoleRenderer, so we pass event_dict as is
+        return formatted
     
     import logging
     
@@ -36,6 +54,7 @@ def setup_logging(log_level="INFO", log_file=None):
     
     # Configure processors (shared)
     shared_processors = [
+        custom_log_formatter,
         # Add log level to event dict
         structlog.stdlib.add_log_level,
         # Add timestamp
@@ -76,8 +95,14 @@ def setup_logging(log_level="INFO", log_file=None):
     
     # Colored output for console
     if sys.stderr.isatty():
+        # Patch ConsoleRenderer to use white for values
+        from structlog.dev import ConsoleRenderer
+        class WhiteValueConsoleRenderer(ConsoleRenderer):
+            def _repr(self, value):
+                # Always use white color for values
+                return self._stylize(str(value), "white")
         console_formatter = structlog.stdlib.ProcessorFormatter(
-            processor=structlog.dev.ConsoleRenderer(colors=True),
+            processor=WhiteValueConsoleRenderer(colors=True),
             foreign_pre_chain=shared_processors,
         )
     else:
