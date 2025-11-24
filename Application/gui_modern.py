@@ -347,6 +347,8 @@ class ModernTradingGUI:
                             dpg.add_spacer(width=10)
                             dpg.add_input_text(label="Symbol", tag="rsi_symbol", default_value="NATGASMINI", width=150)
                         dpg.add_combo(label="Interval", tag="rsi_interval", items=["1hour"], default_value="1hour", width=120)
+                        # Candle type selection
+                        dpg.add_combo(label="Candle Type", tag="rsi_candle_type", items=["Normal", "Heikin Ashi"], default_value="Normal", width=150)
                         with dpg.group(horizontal=True):
                             dpg.add_button(label="Launch RSI Monitor", tag="rsi_start_btn", callback=self.launch_rsi_monitor)
                             dpg.add_button(label="Stop Monitor", tag="rsi_stop_btn", callback=self.stop_rsi_monitor, show=False)
@@ -370,6 +372,8 @@ class ModernTradingGUI:
                             dpg.add_spacer(width=10)
                             dpg.add_input_text(label="Symbol", tag="donchian_symbol", default_value="GOLDPETAL", width=150)
                         dpg.add_combo(label="Interval", tag="donchian_interval", items=["1hour"], default_value="1hour", width=120)
+                        # Candle type selection for Donchian
+                        dpg.add_combo(label="Candle Type", tag="donchian_candle_type", items=["Normal", "Heikin Ashi"], default_value="Normal", width=150)
                         with dpg.group(horizontal=True):
                             dpg.add_button(label="Launch Donchian Monitor", tag="donchian_start_btn", callback=self.launch_donchian_monitor)
                             dpg.add_button(label="Stop Monitor", tag="donchian_stop_btn", callback=self.stop_donchian_monitor, show=False)
@@ -1332,7 +1336,14 @@ Capital Required: Rs.{capital_required:,.2f}
                         dpg.configure_item("rsi_status", color=(255,100,100))
                         self._send_discord_alert(error_msg, color=0xFFA500)
                         return False
-                    close = df['close']
+                    # Candle type selection
+                    candle_type = dpg.get_value("rsi_candle_type")
+                    if candle_type == "Heikin Ashi":
+                        from Core_Modules.strategies import TradingStrategies
+                        ha_df = TradingStrategies.heikin_ashi(df)
+                        close = ha_df['ha_close']
+                    else:
+                        close = df['close']
                     delta = close.diff()
                     gain = delta.where(delta > 0, 0)
                     loss = -delta.where(delta < 0, 0)
@@ -1550,11 +1561,18 @@ Capital Required: Rs.{capital_required:,.2f}
                         self._send_discord_alert(error_msg, color=0xFFA500)
                         return False
                     
-                    # Calculate Donchian Channels
-                    high = df['high']
-                    low = df['low']
-                    close = df['close']
-                    
+                    # Candle type selection for Donchian
+                    candle_type = dpg.get_value("donchian_candle_type") if dpg.does_item_exist("donchian_candle_type") else "Normal"
+                    if candle_type == "Heikin Ashi":
+                        from Core_Modules.strategies import TradingStrategies
+                        ha_df = TradingStrategies.heikin_ashi(df)
+                        high = ha_df['ha_high']
+                        low = ha_df['ha_low']
+                        close = ha_df['ha_close']
+                    else:
+                        high = df['high']
+                        low = df['low']
+                        close = df['close']
                     # Upper band: highest high over upper_period
                     upper_band = high.rolling(window=upper_period).max().iloc[-1]
                     # Lower band: lowest low over lower_period
