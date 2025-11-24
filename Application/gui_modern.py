@@ -343,7 +343,7 @@ class ModernTradingGUI:
                         dpg.add_text("RSI Live Monitor - NATGASMINI", tag="rsi_title")
                         dpg.add_separator()
                         with dpg.group(horizontal=True):
-                            dpg.add_combo(label="Future", tag="rsi_contract", items=[], width=200, callback=self.on_contract_change)
+                            dpg.add_combo(label="Future", tag="rsi_contract", items=[], width=400, callback=self.on_contract_change)
                             dpg.add_spacer(width=10)
                             dpg.add_input_text(label="Symbol", tag="rsi_symbol", default_value="NATGASMINI", width=150)
                         dpg.add_combo(label="Interval", tag="rsi_interval", items=["1hour"], default_value="1hour", width=120)
@@ -366,7 +366,7 @@ class ModernTradingGUI:
                         dpg.add_text("Donchian Channel Strategy Monitor", tag="donchian_title")
                         dpg.add_separator()
                         with dpg.group(horizontal=True):
-                            dpg.add_combo(label="Future", tag="donchian_contract", items=[], width=200, callback=self.on_donchian_contract_change)
+                            dpg.add_combo(label="Future", tag="donchian_contract", items=[], width=400, callback=self.on_donchian_contract_change)
                             dpg.add_spacer(width=10)
                             dpg.add_input_text(label="Symbol", tag="donchian_symbol", default_value="GOLDPETAL", width=150)
                         dpg.add_combo(label="Interval", tag="donchian_interval", items=["1hour"], default_value="1hour", width=120)
