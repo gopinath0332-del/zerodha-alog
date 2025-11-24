@@ -1,3 +1,4 @@
+import pandas as pd
 """
 Common trading strategies and helper functions
 """
@@ -10,7 +11,30 @@ logger = get_logger(__name__)
 
 class TradingStrategies:
     """Collection of common trading strategies"""
-    
+
+    @staticmethod
+    def heikin_ashi(df):
+        """
+        Convert OHLC DataFrame to Heikin Ashi candles.
+        Args:
+            df: DataFrame with columns ['open', 'high', 'low', 'close']
+        Returns:
+            DataFrame with Heikin Ashi columns ['ha_open', 'ha_high', 'ha_low', 'ha_close']
+        """
+        ha_df = df.copy()
+        ha_close = (df['open'] + df['high'] + df['low'] + df['close']) / 4
+        ha_open = [df['open'].iloc[0]]
+        for i in range(1, len(df)):
+            ha_open.append((ha_open[i-1] + ha_close.iloc[i-1]) / 2)
+        ha_open = pd.Series(ha_open, index=df.index)
+        ha_high = pd.concat([ha_open, ha_close, df['high']], axis=1).max(axis=1)
+        ha_low = pd.concat([ha_open, ha_close, df['low']], axis=1).min(axis=1)
+        ha_df['ha_open'] = ha_open
+        ha_df['ha_high'] = ha_high
+        ha_df['ha_low'] = ha_low
+        ha_df['ha_close'] = ha_close
+        return ha_df[['ha_open', 'ha_high', 'ha_low', 'ha_close']]
+
     def __init__(self):
         self.trader = KiteTrader()
     
