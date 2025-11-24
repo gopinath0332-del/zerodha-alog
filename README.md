@@ -1,13 +1,13 @@
 # Zerodha Kite Connect Trading Bot
 
-Automated trading system for Zerodha using the KiteConnect API with advanced RSI monitoring, Donchian Channel strategy, Discord alerts, and a modern GUI.
+Automated trading system for Zerodha using the KiteConnect API with advanced RSI monitoring, Donchian Channel strategy, email and Discord alerts, and a modern GUI.
 
 ## ✨ Latest Features
 
+- **Email & Discord Alerts**: Unified notification system supporting both email (SMTP) and Discord webhooks. Configure via `.env` file.
 - **Heikin Ashi Candle Support**: Both NatgasMini RSI and GOLDPETAL Donchian monitors now support Heikin Ashi candles. Users can select candle type via radio buttons (default: Heikin Ashi) in the GUI.
 - **Commodity Strategy Tabs**: Dedicated tabs for NatgasMini (RSI) and GOLDPETAL (Donchian) with auto-loaded MCX futures.
 - **Simplified UI**: No exchange dropdowns; all commodity contracts auto-populate.
-- **Discord Alerts**: All strategy signals send rich Discord webhook notifications.
 - **Float Log Formatting**: All float values in logs are normalized (no np.float64).
 - **Pre-commit Hooks Removed**: No pre-commit logic in repo.
 - **Improved Logging**: Value color set to white, spacing added.
@@ -50,7 +50,7 @@ Automated trading system for Zerodha using the KiteConnect API with advanced RSI
 - RSI strategy: automated calculation, overbought/oversold alerts
 - Donchian Channel: breakout/breakdown detection for GOLDPETAL
 - Commodity focus: dedicated monitors for NATGASMINI and GOLDPETAL
-- Hourly analysis, Discord alerts, sound notifications
+- Hourly analysis, email and Discord alerts, sound notifications
 
 ### User Interfaces
 
@@ -142,6 +142,19 @@ pip3.9 install -r Configuration/requirements.txt
 ```bash
 API_KEY=your_api_key_here
 API_SECRET=your_api_secret_here
+
+# Email alerts (optional)
+EMAIL_ENABLED=true
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+EMAIL_FROM=your-email@gmail.com
+EMAIL_TO=recipient@example.com
+
+# Discord alerts (optional)
+DISCORD_ENABLED=true
+DISCORD_WEBHOOK_URL=your-discord-webhook-url
 ```
 
 3. Run the application:
@@ -171,7 +184,7 @@ python3.9 Application/gui_modern.py
 ### NatgasMini Tab - RSI Strategy
 
 - Live RSI calculation (period=14)
-- Discord webhook alerts
+- Email and Discord webhook alerts
 - 1-hour analysis intervals
 - Threshold alerts (>70, <30)
 - Sound alerts
@@ -181,7 +194,7 @@ python3.9 Application/gui_modern.py
 ### GOLDPETAL Tab - Donchian Channel Strategy
 
 - Donchian Channel analysis (Upper: 20, Lower: 10)
-- Discord alerts for breakouts/breakdowns
+- Email and Discord alerts for breakouts/breakdowns
 - 1-hour intervals
 - Bullish/bearish alerts
 - Sound alerts
@@ -196,8 +209,8 @@ python3.9 Application/gui_modern.py
 
 ## 📈 Strategy Usage
 
-- NatgasMini RSI: Select future, launch monitor, receive Discord alerts
-- GOLDPETAL Donchian: Select future, launch monitor, receive Discord alerts
+- NatgasMini RSI: Select future, launch monitor, receive email and Discord alerts
+- GOLDPETAL Donchian: Select future, launch monitor, receive email and Discord alerts
 
 ## 🖼️ Classic GUI (tkinter)
 
@@ -218,10 +231,11 @@ python3.9 Application/gui_modern.py
 
 ## 🆕 Recent Updates
 
+- Email alert system with SMTP support (Gmail, Outlook, custom servers)
+- Unified notification system supporting both email and Discord
 - Heikin Ashi candle support for both strategies (radio button, default selected)
 - Commodity tabs with auto-loaded MCX futures
 - UI simplification (no exchange dropdowns)
-- Discord alerts for all signals
 - Float log formatting normalized
 - Pre-commit hooks removed
 - Improved logging (white value color, spacing)
@@ -232,7 +246,8 @@ python3.9 Application/gui_modern.py
 - All order examples are commented out by default
 - Use Python 3.9 for all commands
 - Use `Core_Modules/` (underscore) for active code
-- Configure Discord webhook URL in `Application/gui_modern.py`
+- Configure email and Discord settings in `Configuration/.env`
+- For Gmail: use App Password instead of regular password (https://myaccount.google.com/apppasswords)
 
 ## 🔧 Troubleshooting
 
