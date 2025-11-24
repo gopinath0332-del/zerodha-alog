@@ -2,6 +2,22 @@
 
 Automated trading system for Zerodha using the KiteConnect API with advanced RSI monitoring, Donchian Channel strategy, Discord alerts, and a modern GUI.
 
+## ✨ Latest Features
+
+- **Heikin Ashi Candle Support**: Both NatgasMini RSI and GOLDPETAL Donchian monitors now support Heikin Ashi candles. Users can select candle type via radio buttons (default: Heikin Ashi) in the GUI.
+- **Commodity Strategy Tabs**: Dedicated tabs for NatgasMini (RSI) and GOLDPETAL (Donchian) with auto-loaded MCX futures.
+- **Simplified UI**: No exchange dropdowns; all commodity contracts auto-populate.
+- **Discord Alerts**: All strategy signals send rich Discord webhook notifications.
+- **Float Log Formatting**: All float values in logs are normalized (no np.float64).
+- **Pre-commit Hooks Removed**: No pre-commit logic in repo.
+- **Improved Logging**: Value color set to white, spacing added.
+
+## How to Use Heikin Ashi Feature
+
+- In the NatgasMini and GOLDPETAL tabs, select your contract and interval.
+- Choose candle type using the radio button (Heikin Ashi or Normal).
+- Launch the monitor; RSI or Donchian logic will use the selected candle type.
+
 ## 📑 Table of Contents
 
 - Key Features
@@ -148,10 +164,11 @@ python3.9 Application/gui_modern.py
 - Real-time charts, live data tables
 - Automated authentication
 - Portfolio dashboard, trading tools, CSV export
+- **Heikin Ashi Candle Support** for both RSI and Donchian strategies
 
-### Commodity Strategy Monitors
+## Commodity Strategy Monitors
 
-#### NatgasMini Tab - RSI Strategy
+### NatgasMini Tab - RSI Strategy
 
 - Live RSI calculation (period=14)
 - Discord webhook alerts
@@ -159,8 +176,9 @@ python3.9 Application/gui_modern.py
 - Threshold alerts (>70, <30)
 - Sound alerts
 - Auto-loaded MCX futures
+- **Candle Type Selection**: Heikin Ashi or Normal (radio button)
 
-#### GOLDPETAL Tab - Donchian Channel Strategy
+### GOLDPETAL Tab - Donchian Channel Strategy
 
 - Donchian Channel analysis (Upper: 20, Lower: 10)
 - Discord alerts for breakouts/breakdowns
@@ -168,6 +186,7 @@ python3.9 Application/gui_modern.py
 - Bullish/bearish alerts
 - Sound alerts
 - Auto-loaded MCX futures
+- **Candle Type Selection**: Heikin Ashi or Normal (radio button)
 
 ## 🔐 Authentication
 
@@ -199,12 +218,13 @@ python3.9 Application/gui_modern.py
 
 ## 🆕 Recent Updates
 
-- Dedicated NatgasMini RSI and GOLDPETAL Donchian tabs in GUI
-- Auto-loaded MCX futures, simplified UI (no exchange dropdowns)
-- Discord alerts for all strategy signals
-- Float formatting in logs normalized (no np.float64)
+- Heikin Ashi candle support for both strategies (radio button, default selected)
+- Commodity tabs with auto-loaded MCX futures
+- UI simplification (no exchange dropdowns)
+- Discord alerts for all signals
+- Float log formatting normalized
 - Pre-commit hooks removed
-- Improved logging: value color set to white, spacing added
+- Improved logging (white value color, spacing)
 
 ## ⚠️ Important Notes
 

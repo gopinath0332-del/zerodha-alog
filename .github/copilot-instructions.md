@@ -42,11 +42,13 @@ order_id = trader.buy_market('INFY', quantity=1, exchange='NSE', product='CNC')
 - `auth.py`: OAuth2 flow, session persistence, profile retrieval
 - `trader.py`: Thin wrapper over KiteConnect SDK with convenience methods (`buy_market`, `sell_limit`, etc.)
 - `websocket_ticker.py`: Real-time streaming with callback architecture
-- `strategies.py`: Pre-built strategies (bracket orders, momentum, trailing SL)
+- `strategies.py`: Pre-built strategies (bracket orders, momentum, trailing SL, **Heikin Ashi conversion**)
 - `utils.py`: Pure functions for position sizing, CSV export, portfolio summaries
 
 ### Application/ (User interfaces)
 - `gui_modern.py`: DearPyGui trading terminal (GPU-accelerated, recommended)
+    - **Commodity tabs (NatgasMini RSI, GOLDPETAL Donchian) with Heikin Ashi candle support**
+    - **Radio buttons for candle type selection (default: Heikin Ashi)**
 - `gui.py`: Legacy tkinter GUI
 - `main.py`: Interactive CLI with menu-driven workflow
 - `authenticate.py`: Standalone auth script for daily login
@@ -120,6 +122,8 @@ Wrapped by `trader.py` - access raw SDK via `trader.kite` for advanced features 
 - GPU-accelerated, requires OpenGL
 - Uses callback architecture with `dpg.add_*` widgets
 - Theme defined in `setup_theme()` - modify for visual changes
+- **Commodity tabs (NatgasMini RSI, GOLDPETAL Donchian) with Heikin Ashi candle support**
+- **Radio buttons for candle type selection (default: Heikin Ashi)**
 
 ### CSV Export
 Utils provide `export_positions_to_csv()` and `export_holdings_to_csv()` - saved to project root by default.
@@ -134,27 +138,32 @@ Utils provide `export_positions_to_csv()` and `export_holdings_to_csv()` - saved
 
 ## Branch-Specific Features
 
-### RSI Monitoring (feature/rsi branch)
-The modern GUI (`gui_modern.py`) includes RSI strategy monitoring:
-- Real-time RSI calculation with Discord webhook alerts
-- RSI monitor state tracked in `rsi_monitor_running`, `current_rsi_value`, `current_rsi_symbol`
-- Discord webhook hardcoded in GUI init - externalize to config for production
-- Launch via "RSI Strategy" tab in GUI, monitors at 1-hour intervals
-- Discord alerts sent via `_send_discord_alert()` method
+### RSI & Donchian Monitoring (feature/rsi branch)
+The modern GUI (`gui_modern.py`) includes:
+- **RSI strategy monitoring with Heikin Ashi candle support**
+- **Donchian Channel monitoring with Heikin Ashi candle support**
+- Real-time calculation, Discord webhook alerts
+- Candle type selection via radio buttons (default: Heikin Ashi)
+- Launch via dedicated commodity tabs
 
-### Directory Structure Note
+## Directory Structure Note
 - `Core Modules/` (with space) exists alongside `Core_Modules/` (underscore)
 - Only `Core_Modules/` is actively used - contains working code
-- `Core Modules/` appears to be legacy/unused - verify before deletion
 - Always import from `Core_Modules` (underscore version)
 
 ## GUI Architecture (gui_modern.py)
 
 ### DearPyGui Patterns
 - Tag-based widget system: `tag="rsi_current_value"` for later updates via `dpg.set_value("rsi_current_value", new_val)`
-- Threading for background tasks: OAuth callback server, RSI monitoring loops
+- Threading for background tasks: OAuth callback server, RSI/Donchian monitoring loops
 - Callback handlers specified via `callback=self.method_name` in widget creation
 - Theme configured in `setup_theme()` with dark terminal aesthetics
+- **Radio buttons for candle type selection (default: Heikin Ashi)**
+
+### Commodity Tabs
+- NatgasMini RSI and GOLDPETAL Donchian tabs
+- Candle type selection (Heikin Ashi or Normal)
+- Discord alerts for strategy signals
 
 ### OAuth Callback Server
 - Embedded HTTP server (`CallbackHandler`) captures OAuth redirects on port 5000
@@ -173,7 +182,7 @@ The modern GUI (`gui_modern.py`) includes RSI strategy monitoring:
 - GUI sends trading alerts to Discord via webhook POST requests
 - Webhook URL hardcoded in `gui_modern.py` - **SECURITY ISSUE**: move to `.env`
 - Alert format: JSON with embeds (title, description, color, timestamp)
-- Used for RSI threshold breach notifications
+- Used for RSI/Donchian threshold breach notifications
 
 ### HTTP Callback Server
 - Local server on `http://127.0.0.1:5000/callback` for OAuth redirects
@@ -215,4 +224,5 @@ Never commit to git (already in `.gitignore`):
 - Standard Python `logging` module used throughout
 - Level set to `INFO` by default, `DEBUG` in `websocket_ticker.py`
 - No centralized log configuration - each module configures independently
+- Value color set to white, spacing added
 - Consider unified logging config for production use
