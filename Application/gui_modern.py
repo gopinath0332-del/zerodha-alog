@@ -347,8 +347,8 @@ class ModernTradingGUI:
                             dpg.add_spacer(width=10)
                             dpg.add_input_text(label="Symbol", tag="rsi_symbol", default_value="NATGASMINI", width=150)
                         dpg.add_combo(label="Interval", tag="rsi_interval", items=["1hour"], default_value="1hour", width=120)
-                        # Candle type selection
-                        dpg.add_combo(label="Candle Type", tag="rsi_candle_type", items=["Normal", "Heikin Ashi"], default_value="Normal", width=150)
+                        # Candle type selection (radio box, default Heikin Ashi)
+                        dpg.add_radio_button(items=["Heikin Ashi", "Normal"], tag="rsi_candle_type", default_value="Heikin Ashi", horizontal=True)
                         with dpg.group(horizontal=True):
                             dpg.add_button(label="Launch RSI Monitor", tag="rsi_start_btn", callback=self.launch_rsi_monitor)
                             dpg.add_button(label="Stop Monitor", tag="rsi_stop_btn", callback=self.stop_rsi_monitor, show=False)
@@ -372,8 +372,8 @@ class ModernTradingGUI:
                             dpg.add_spacer(width=10)
                             dpg.add_input_text(label="Symbol", tag="donchian_symbol", default_value="GOLDPETAL", width=150)
                         dpg.add_combo(label="Interval", tag="donchian_interval", items=["1hour"], default_value="1hour", width=120)
-                        # Candle type selection for Donchian
-                        dpg.add_combo(label="Candle Type", tag="donchian_candle_type", items=["Normal", "Heikin Ashi"], default_value="Normal", width=150)
+                        # Candle type selection for Donchian (radio box, default Heikin Ashi)
+                        dpg.add_radio_button(items=["Heikin Ashi", "Normal"], tag="donchian_candle_type", default_value="Heikin Ashi", horizontal=True)
                         with dpg.group(horizontal=True):
                             dpg.add_button(label="Launch Donchian Monitor", tag="donchian_start_btn", callback=self.launch_donchian_monitor)
                             dpg.add_button(label="Stop Monitor", tag="donchian_stop_btn", callback=self.stop_donchian_monitor, show=False)
