@@ -22,22 +22,34 @@ def setup_logging(log_level="INFO", log_file=None):
         Configured structlog logger
     """
     # Custom processor for float formatting, spacing, and value color
-    def custom_log_formatter(logger, method_name, event_dict):
-        formatted = {}
-        for k, v in event_dict.items():
-            # Format floats to two decimals
-            if isinstance(v, float):
-                v = f"{v:.2f}"
-            # Format numpy floats
+    import re
+    def format_value(val):
+        # Format direct floats and numpy floats
+        if isinstance(val, float):
+            return f"{val:.2f}"
+        # Catch all float-like numpy types
+        type_name = type(val).__name__
+        if "float" in type_name:
             try:
-                import numpy as np
-                if isinstance(v, (np.float32, np.float64)):
-                    v = f"{float(v):.2f}"
-            except ImportError:
+                return f"{float(val):.2f}"
+            except Exception:
                 pass
-            formatted[k] = v
-        # Add space between variable and value in output
-        # This is for ConsoleRenderer, so we pass event_dict as is
+        # Format np.floatXX(...) string representations
+        if isinstance(val, str):
+            match = re.match(r"np\.float(32|64)\(([-+]?[0-9]*\.?[0-9]+)\)", val)
+            if match:
+                return f"{float(match.group(2)):.2f}"
+        # Recursively format lists, tuples, dicts
+        if isinstance(val, list):
+            return [format_value(x) for x in val]
+        if isinstance(val, tuple):
+            return tuple(format_value(x) for x in val)
+        if isinstance(val, dict):
+            return {k: format_value(v) for k, v in val.items()}
+        return val
+
+    def custom_log_formatter(logger, method_name, event_dict):
+        formatted = {k: format_value(v) for k, v in event_dict.items()}
         return formatted
     
     import logging
