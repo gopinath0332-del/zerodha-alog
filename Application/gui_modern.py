@@ -26,6 +26,7 @@ from Core_Modules.utils import (
     export_holdings_to_csv
 )
 from Core_Modules.logger import get_logger
+from Core_Modules.notifications import create_notification_manager_from_config
 
 logger = get_logger(__name__)
 
@@ -88,7 +89,9 @@ class ModernTradingGUI:
         self.donchian_monitor_running = False  # Track Donchian monitor state
         self.current_donchian_price = None  # Track current price
         self.current_donchian_symbol = None  # Track symbol being monitored
-        self.discord_webhook_url = "https://discord.com/api/webhooks/1435171751305678868/2qh5UiV4VCP3wuZL3IprM9y0YuGHMRxrIn-vPsL5sdjL7j3bV3B6uZxzWzHKjrcHZa0Q"
+        
+        # Initialize notification system (email + Discord)
+        self.notifier = create_notification_manager_from_config()
         
         # Data storage for charts
         self.portfolio_data = {
@@ -1685,25 +1688,14 @@ Capital Required: Rs.{capital_required:,.2f}
         # Reset tab color
         dpg.bind_item_theme("tab_goldpetal", 0)  # 0 unbinds the theme
     
-    def _send_discord_alert(self, message, color=0xFF5733):
-        """Send alert to Discord webhook"""
-        try:
-            embed = {
-                "embeds": [{
-                    "title": "🔔 RSI Alert",
-                    "description": message,
-                    "color": color,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "footer": {"text": "Zerodha Trading Bot"}
-                }]
-            }
-            response = requests.post(self.discord_webhook_url, json=embed, timeout=5)
-            if response.status_code == 204:
-                logger.info("discord_alert_sent", status="success")
-            else:
-                logger.warning("discord_alert_failed", status_code=response.status_code)
-        except Exception as e:
-            logger.error("discord_alert_error", error=str(e), exc_info=True)
+    def _send_discord_alert(self, message, color=0xFF5733, title="Trading Alert"):
+        """Send alert via notification system (email + Discord)"""
+        self.notifier.send_alert(
+            message=message,
+            title=title,
+            color=color,
+            async_send=True
+        )
     
     def _play_alert_sound(self):
         """Play alert sound (cross-platform)"""

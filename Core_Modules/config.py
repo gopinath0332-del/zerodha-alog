@@ -31,6 +31,19 @@ class Config:
     STOP_LOSS_PERCENTAGE = 2.0  # Default stop loss percentage
     TARGET_PERCENTAGE = 5.0  # Default target percentage
     
+    # Notification settings
+    EMAIL_ENABLED = os.getenv('EMAIL_ENABLED', 'false').lower() == 'true'
+    SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+    SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
+    SMTP_USERNAME = os.getenv('SMTP_USERNAME', '')
+    SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
+    EMAIL_FROM = os.getenv('EMAIL_FROM', '')
+    EMAIL_TO = os.getenv('EMAIL_TO', '')
+    EMAIL_TO_ADDITIONAL = os.getenv('EMAIL_TO_ADDITIONAL', '')
+    
+    DISCORD_ENABLED = os.getenv('DISCORD_ENABLED', 'true').lower() == 'true'
+    DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
+    
     @classmethod
     def validate(cls):
         """Validate that required configuration is present"""
