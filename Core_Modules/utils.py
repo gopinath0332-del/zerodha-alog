@@ -214,26 +214,53 @@ def get_portfolio_summary(trader):
         # Get positions
         positions = trader.get_positions()
         day_positions = [p for p in positions['day'] if p['quantity'] != 0]
+        net_positions = [p for p in positions['net'] if p['quantity'] != 0]
         
         # Get holdings
         holdings = trader.get_holdings()
         
         # Calculate totals
         total_day_pnl = sum(p['pnl'] for p in day_positions)
+        total_net_pnl = sum(p['pnl'] for p in net_positions)
         total_holdings_pnl = sum(h['pnl'] for h in holdings)
         total_investment = sum(h['average_price'] * h['quantity'] for h in holdings)
         total_current_value = sum(h['last_price'] * h['quantity'] for h in holdings)
         
+        # Calculate total capital used from positions
+        total_capital_used = 0
+        for p in net_positions:
+            try:
+                margin_data = trader.kite.order_margins([{
+                    'exchange': p['exchange'],
+                    'tradingsymbol': p['tradingsymbol'],
+                    'transaction_type': 'BUY' if p['quantity'] > 0 else 'SELL',
+                    'variety': 'regular',
+                    'product': p['product'],
+                    'order_type': 'MARKET',
+                    'quantity': abs(p['quantity']),
+                    'price': 0,
+                    'trigger_price': 0
+                }])
+                if margin_data and len(margin_data) > 0:
+                    total_capital_used += margin_data[0].get('total', 0)
+            except Exception as e:
+                logger.warning("position_margin_calc_failed", 
+                             symbol=p['tradingsymbol'], 
+                             error=str(e))
+        
         summary = {
             'available_margin': margins['available']['live_balance'],
             'used_margin': margins['utilised']['debits'],
+            'capital_used': round(total_capital_used, 2),
             'day_positions_count': len(day_positions),
             'day_positions_pnl': round(total_day_pnl, 2),
+            'net_positions_count': len(net_positions),
+            'positions_pnl': round(total_net_pnl, 2),  # Net positions P&L (actual positions)
             'holdings_count': len(holdings),
             'holdings_investment': round(total_investment, 2),
             'holdings_current_value': round(total_current_value, 2),
             'holdings_pnl': round(total_holdings_pnl, 2),
-            'total_pnl': round(total_day_pnl + total_holdings_pnl, 2)
+            'total_pnl': round(total_net_pnl + total_holdings_pnl, 2)
         }
         
         return summary
