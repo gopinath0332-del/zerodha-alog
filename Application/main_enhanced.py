@@ -822,6 +822,10 @@ class EnhancedTradingCLI:
                             time.sleep(60)
                             continue
                         
+                        # Ensure 'date' column exists (kite returns it as a column)
+                        if 'date' not in df.columns and df.index.name == 'date':
+                            df.reset_index(inplace=True)
+                        
                         # Convert to Heikin Ashi if selected
                         if candle_type == "Heikin Ashi":
                             df = TradingStrategies.heikin_ashi(df)
@@ -839,8 +843,17 @@ class EnhancedTradingCLI:
                         current_rsi = float(rsi.iloc[-1])
                         self.rsi_current_value = current_rsi
                         
-                        # Check for alerts
-                        candle_timestamp = df['date'].iloc[-1].isoformat()
+                        # Check for alerts - use timestamp for deduplication
+                        # Try to get timestamp from date column, otherwise use current time + row index
+                        if 'date' in df.columns:
+                            try:
+                                candle_timestamp = df['date'].iloc[-1].isoformat()
+                            except AttributeError:
+                                # If date is not datetime, convert it
+                                candle_timestamp = str(df['date'].iloc[-1])
+                        else:
+                            # Use a combination of current time and last close price for unique ID
+                            candle_timestamp = f"{datetime.now().strftime('%Y%m%d%H')}_{float(close.iloc[-1]):.2f}"
                         
                         if candle_timestamp not in self.rsi_alerted_candles:
                             if current_rsi > 70:
@@ -1035,6 +1048,10 @@ class EnhancedTradingCLI:
                             time.sleep(60)
                             continue
                         
+                        # Ensure 'date' column exists (kite returns it as a column)
+                        if 'date' not in df.columns and df.index.name == 'date':
+                            df.reset_index(inplace=True)
+                        
                         # Convert to Heikin Ashi if selected
                         if candle_type == "Heikin Ashi":
                             df = TradingStrategies.heikin_ashi(df)
@@ -1058,8 +1075,17 @@ class EnhancedTradingCLI:
                         self.donchian_upper_band = float(upper_band)
                         self.donchian_lower_band = float(lower_band)
                         
-                        # Check for alerts
-                        candle_timestamp = df['date'].iloc[-1].isoformat()
+                        # Check for alerts - use timestamp for deduplication
+                        # Try to get timestamp from date column, otherwise use current time + row index
+                        if 'date' in df.columns:
+                            try:
+                                candle_timestamp = df['date'].iloc[-1].isoformat()
+                            except AttributeError:
+                                # If date is not datetime, convert it
+                                candle_timestamp = str(df['date'].iloc[-1])
+                        else:
+                            # Use a combination of current time and last close price for unique ID
+                            candle_timestamp = f"{datetime.now().strftime('%Y%m%d%H')}_{float(close.iloc[-1]):.2f}"
                         
                         if candle_timestamp not in self.donchian_alerted_candles:
                             if prev_close >= upper_band:

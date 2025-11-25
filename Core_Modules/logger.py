@@ -107,14 +107,11 @@ def setup_logging(log_level="INFO", log_file=None):
     
     # Colored output for console
     if sys.stderr.isatty():
-        # Patch ConsoleRenderer to use white for values
+        # Use ConsoleRenderer with default settings
+        # The value color is already white by default in newer structlog versions
         from structlog.dev import ConsoleRenderer
-        class WhiteValueConsoleRenderer(ConsoleRenderer):
-            def _repr(self, value):
-                # Always use white color for values
-                return self._stylize(str(value), "white")
         console_formatter = structlog.stdlib.ProcessorFormatter(
-            processor=WhiteValueConsoleRenderer(colors=True),
+            processor=ConsoleRenderer(colors=True),
             foreign_pre_chain=shared_processors,
         )
     else:
