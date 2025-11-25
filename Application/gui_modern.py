@@ -86,9 +86,11 @@ class ModernTradingGUI:
         self.rsi_monitor_running = False  # Track RSI monitor state
         self.current_rsi_value = None  # Track current RSI value for alerts
         self.current_rsi_symbol = None  # Track symbol being monitored
+        self.rsi_alerted_candles = set()  # Track candle timestamps that triggered RSI alerts
         self.donchian_monitor_running = False  # Track Donchian monitor state
         self.current_donchian_price = None  # Track current price
         self.current_donchian_symbol = None  # Track symbol being monitored
+        self.donchian_alerted_candles = set()  # Track candle timestamps that triggered alerts
         
         # Initialize notification system (email + Discord)
         self.notifier = create_notification_manager_from_config()
@@ -1258,6 +1260,7 @@ Capital Required: Rs.{capital_required:,.2f}
             return
         
         self.rsi_monitor_running = True
+        self.rsi_alerted_candles = set()  # Reset alert tracking for new monitoring session
         dpg.configure_item("rsi_start_btn", show=False)
         dpg.configure_item("rsi_stop_btn", show=True)
         
@@ -1369,11 +1372,81 @@ Capital Required: Rs.{capital_required:,.2f}
                     )
                     dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
                     nonlocal first_run, last_alert
+                    
                     if first_run:
                         start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**RSI:** {current_rsi:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         self._send_discord_alert(start_msg, color=0x3498DB)
+                        
+                        # LOOKBACK FEATURE: Check last 10 candles for missed RSI signals on startup
+                        lookback_count = min(10, len(df) - 1)  # Check last 10 candles or all available
+                        logger.info("rsi_lookback_start", lookback_count=lookback_count)
+                        
+                        for i in range(lookback_count, 0, -1):  # Start from oldest to newest
+                            idx = -1 - i  # Index from end of dataframe
+                            candle_date = df['date'].iloc[idx]
+                            candle_timestamp = candle_date.isoformat()
+                            
+                            # Skip if already alerted
+                            if candle_timestamp in self.rsi_alerted_candles:
+                                continue
+                            
+                            # Calculate RSI for this historical candle
+                            if candle_type == "Heikin Ashi":
+                                from Core_Modules.strategies import TradingStrategies
+                                ha_df_lookback = TradingStrategies.heikin_ashi(df.iloc[:idx+1])
+                                close_lookback = ha_df_lookback['ha_close']
+                            else:
+                                close_lookback = df['close'].iloc[:idx+1]
+                            
+                            if len(close_lookback) >= period + 1:
+                                delta_lb = close_lookback.diff()
+                                gain_lb = delta_lb.where(delta_lb > 0, 0)
+                                loss_lb = -delta_lb.where(delta_lb < 0, 0)
+                                avg_gain_lb = gain_lb.rolling(window=period, min_periods=period).mean()
+                                avg_loss_lb = loss_lb.rolling(window=period, min_periods=period).mean()
+                                
+                                for j in range(period, len(gain_lb)):
+                                    avg_gain_lb.iloc[j] = (avg_gain_lb.iloc[j-1] * (period - 1) + gain_lb.iloc[j]) / period
+                                    avg_loss_lb.iloc[j] = (avg_loss_lb.iloc[j-1] * (period - 1) + loss_lb.iloc[j]) / period
+                                
+                                rs_lb = avg_gain_lb / avg_loss_lb
+                                rsi_lb = 100 - (100 / (1 + rs_lb))
+                                lookback_rsi = float(rsi_lb.iloc[-1])
+                                
+                                if lookback_rsi > 70:
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    logger.warning(
+                                        "rsi_lookback_overbought",
+                                        candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
+                                        rsi=round(lookback_rsi, 2)
+                                    )
+                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self.rsi_alerted_candles.add(candle_timestamp)
+                                elif lookback_rsi < 30:
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    logger.warning(
+                                        "rsi_lookback_oversold",
+                                        candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
+                                        rsi=round(lookback_rsi, 2)
+                                    )
+                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self.rsi_alerted_candles.add(candle_timestamp)
+                        
                         first_run = False
-                    if current_rsi > 70:
+                    
+                    # Get current candle timestamp for deduplication
+                    current_candle_timestamp = df['date'].iloc[-1].isoformat()
+                    
+                    # Check for RSI alerts with deduplication
+                    logger.debug(
+                        "rsi_current_check",
+                        current_rsi=round(current_rsi, 2),
+                        overbought_threshold=70,
+                        oversold_threshold=30,
+                        already_alerted=current_candle_timestamp in self.rsi_alerted_candles
+                    )
+                    
+                    if current_rsi > 70 and current_candle_timestamp not in self.rsi_alerted_candles:
                         last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S')}"
                         alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         logger.warning(
@@ -1386,7 +1459,8 @@ Capital Required: Rs.{capital_required:,.2f}
                         dpg.configure_item("rsi_last_alert", color=(255,100,100))
                         self._send_discord_alert(alert_msg, color=0xFF5733)
                         self._play_alert_sound()
-                    elif current_rsi < 30:
+                        self.rsi_alerted_candles.add(current_candle_timestamp)
+                    elif current_rsi < 30 and current_candle_timestamp not in self.rsi_alerted_candles:
                         last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S')}"
                         alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         logger.warning(
@@ -1399,6 +1473,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         dpg.configure_item("rsi_last_alert", color=(100,255,100))
                         self._send_discord_alert(alert_msg, color=0x33FF57)
                         self._play_alert_sound()
+                        self.rsi_alerted_candles.add(current_candle_timestamp)
                     else:
                         dpg.set_value("rsi_last_alert", last_alert)
                     dpg.set_value("rsi_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
@@ -1472,6 +1547,7 @@ Capital Required: Rs.{capital_required:,.2f}
             return
         
         self.donchian_monitor_running = True
+        self.donchian_alerted_candles = set()  # Reset alert tracking for new monitoring session
         dpg.configure_item("donchian_start_btn", show=False)
         dpg.configure_item("donchian_stop_btn", show=True)
         
@@ -1581,6 +1657,11 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Lower band: lowest low over lower_period
                     lower_band = low.rolling(window=lower_period).min().iloc[-1]
                     
+                    # Calculate previous candle's bands (excluding the last candle)
+                    prev_upper_band = high.iloc[:-1].rolling(window=upper_period).max().iloc[-1]
+                    prev_lower_band = low.iloc[:-1].rolling(window=lower_period).min().iloc[-1]
+                    prev_close = float(close.iloc[-2]) if len(close) > 1 else None
+                    
                     current_price = float(close.iloc[-1])
                     self.current_donchian_price = current_price
                     self.current_donchian_symbol = symbol
@@ -1600,12 +1681,110 @@ Capital Required: Rs.{capital_required:,.2f}
                     if first_run:
                         start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         self._send_discord_alert(start_msg, color=0x3498DB)
+                        
+                        # LOOKBACK FEATURE: Check last 10 candles for missed signals on startup
+                        lookback_count = min(10, len(df) - 1)  # Check last 10 candles or all available
+                        logger.info("donchian_lookback_start", lookback_count=lookback_count)
+                        
+                        for i in range(lookback_count, 0, -1):  # Start from oldest to newest
+                            idx = -1 - i  # Index from end of dataframe
+                            candle_date = df['date'].iloc[idx]
+                            candle_timestamp = candle_date.isoformat()
+                            
+                            # Skip if already alerted
+                            if candle_timestamp in self.donchian_alerted_candles:
+                                continue
+                            
+                            # Calculate bands excluding candles after this one
+                            lookback_high = high.iloc[:idx+1]
+                            lookback_low = low.iloc[:idx+1]
+                            lookback_close = close.iloc[idx]
+                            
+                            if len(lookback_high) >= upper_period:
+                                lookback_upper = lookback_high.iloc[:-1].rolling(window=upper_period).max().iloc[-1]
+                                
+                                if lookback_close >= lookback_upper:
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**Close:** {lookback_close:.2f}\n**20-Period High:** {lookback_upper:.2f}\n**Status:** BULLISH SIGNAL (Close > 20-Period High)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    logger.warning(
+                                        "donchian_lookback_bullish",
+                                        candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
+                                        close=round(lookback_close, 2),
+                                        upper=round(lookback_upper, 2)
+                                    )
+                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self.donchian_alerted_candles.add(candle_timestamp)
+                            
+                            if len(lookback_low) >= lower_period:
+                                lookback_lower = lookback_low.iloc[:-1].rolling(window=lower_period).min().iloc[-1]
+                                
+                                if lookback_close <= lookback_lower:
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**Close:** {lookback_close:.2f}\n**10-Period Low:** {lookback_lower:.2f}\n**Status:** BEARISH SIGNAL (Close < 10-Period Low)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    logger.warning(
+                                        "donchian_lookback_bearish",
+                                        candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
+                                        close=round(lookback_close, 2),
+                                        lower=round(lookback_lower, 2)
+                                    )
+                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self.donchian_alerted_candles.add(candle_timestamp)
+                        
                         first_run = False
                     
-                    # Check for breakouts
-                    if current_price > upper_band:
+                    # Get previous candle timestamp for deduplication
+                    prev_candle_timestamp = df['date'].iloc[-2].isoformat() if len(df) > 1 else None
+                    current_candle_timestamp = df['date'].iloc[-1].isoformat()
+                    
+                    # Check for previous candle close breakouts (earlier signal) with deduplication
+                    if prev_close is not None and prev_candle_timestamp:
+                        logger.debug(
+                            "donchian_prev_candle_check",
+                            prev_close=round(prev_close, 2),
+                            prev_upper_band=round(prev_upper_band, 2),
+                            prev_lower_band=round(prev_lower_band, 2),
+                            already_alerted=prev_candle_timestamp in self.donchian_alerted_candles
+                        )
+                        
+                        if prev_close >= prev_upper_band and prev_candle_timestamp not in self.donchian_alerted_candles:
+                            last_alert = f"PREV CANDLE CLOSE ABOVE at {datetime.now().strftime('%H:%M:%S')} | Close: {prev_close:.2f}"
+                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**20-Period High:** {prev_upper_band:.2f}\n**Status:** BULLISH SIGNAL (Prev Candle Close >= 20-Period High)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            logger.warning(
+                                "donchian_alert_prev_candle_bullish",
+                                symbol=symbol,
+                                prev_close=round(prev_close, 2),
+                                prev_upper_band=round(prev_upper_band, 2)
+                            )
+                            dpg.set_value("donchian_last_alert", last_alert)
+                            dpg.configure_item("donchian_last_alert", color=(100,255,100))
+                            self._send_discord_alert(alert_msg, color=0x00FF00)
+                            self._play_alert_sound()
+                            self.donchian_alerted_candles.add(prev_candle_timestamp)
+                        elif prev_close <= prev_lower_band and prev_candle_timestamp not in self.donchian_alerted_candles:
+                            last_alert = f"PREV CANDLE CLOSE BELOW at {datetime.now().strftime('%H:%M:%S')} | Close: {prev_close:.2f}"
+                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**10-Period Low:** {prev_lower_band:.2f}\n**Status:** BEARISH SIGNAL (Prev Candle Close <= 10-Period Low)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            logger.warning(
+                                "donchian_alert_prev_candle_bearish",
+                                symbol=symbol,
+                                prev_close=round(prev_close, 2),
+                                prev_lower_band=round(prev_lower_band, 2)
+                            )
+                            dpg.set_value("donchian_last_alert", last_alert)
+                            dpg.configure_item("donchian_last_alert", color=(255,100,100))
+                            self._send_discord_alert(alert_msg, color=0xFF0000)
+                            self._play_alert_sound()
+                            self.donchian_alerted_candles.add(prev_candle_timestamp)
+                    
+                    # Check for current price breakouts with deduplication
+                    logger.debug(
+                        "donchian_current_price_check",
+                        current_price=round(current_price, 2),
+                        upper_band=round(upper_band, 2),
+                        lower_band=round(lower_band, 2),
+                        already_alerted=current_candle_timestamp in self.donchian_alerted_candles
+                    )
+                    
+                    if current_price >= upper_band and current_candle_timestamp not in self.donchian_alerted_candles:
                         last_alert = f"BREAKOUT ABOVE at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
-                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Status:** BULLISH BREAKOUT (Price > Upper Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Status:** BULLISH BREAKOUT (Price >= Upper Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         logger.warning(
                             "donchian_alert_bullish_breakout",
                             symbol=symbol,
@@ -1616,9 +1795,10 @@ Capital Required: Rs.{capital_required:,.2f}
                         dpg.configure_item("donchian_last_alert", color=(100,255,100))
                         self._send_discord_alert(alert_msg, color=0x33FF57)
                         self._play_alert_sound()
-                    elif current_price < lower_band:
+                        self.donchian_alerted_candles.add(current_candle_timestamp)
+                    elif current_price <= lower_band and current_candle_timestamp not in self.donchian_alerted_candles:
                         last_alert = f"BREAKDOWN BELOW at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
-                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** BEARISH BREAKDOWN (Price < Lower Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** BEARISH BREAKDOWN (Price <= Lower Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         logger.warning(
                             "donchian_alert_bearish_breakout",
                             symbol=symbol,
@@ -1629,6 +1809,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         dpg.configure_item("donchian_last_alert", color=(255,100,100))
                         self._send_discord_alert(alert_msg, color=0xFF5733)
                         self._play_alert_sound()
+                        self.donchian_alerted_candles.add(current_candle_timestamp)
                     else:
                         dpg.set_value("donchian_last_alert", last_alert)
                     
