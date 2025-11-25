@@ -231,49 +231,48 @@ python3.9 Application/gui_modern.py
 
 ## 🆕 Recent Updates
 
-
 ## 🆕 Recent Updates (Nov 2025)
 
 - **Email Alert System:**  
-	- Unified notification system for both email (SMTP) and Discord alerts.
-	- Configurable via `.env` (supports Gmail, Outlook, custom SMTP).
-	- Alerts for RSI and Donchian signals.
+ 	- Unified notification system for both email (SMTP) and Discord alerts.
+ 	- Configurable via `.env` (supports Gmail, Outlook, custom SMTP).
+ 	- Alerts for RSI and Donchian signals.
 
 - **Heikin Ashi Candle Support:**  
-	- Both NatgasMini RSI and GOLDPETAL Donchian monitors support Heikin Ashi candles.
-	- Candle type selection via radio buttons (default: Heikin Ashi).
+ 	- Both NatgasMini RSI and GOLDPETAL Donchian monitors support Heikin Ashi candles.
+ 	- Candle type selection via radio buttons (default: Heikin Ashi).
 
 - **Commodity Strategy Tabs:**  
-	- Dedicated tabs for NatgasMini (RSI) and GOLDPETAL (Donchian).
-	- Auto-loaded MCX futures, simplified UI (no exchange dropdowns).
+ 	- Dedicated tabs for NatgasMini (RSI) and GOLDPETAL (Donchian).
+ 	- Auto-loaded MCX futures, simplified UI (no exchange dropdowns).
 
 - **Donchian Channel Enhancements:**  
-	- Improved breakout detection using previous candle’s close.
-	- Inclusive inequalities for signal detection.
-	- Lookback feature for missed signals and deduplication of alerts.
+ 	- Improved breakout detection using previous candle’s close.
+ 	- Inclusive inequalities for signal detection.
+ 	- Lookback feature for missed signals and deduplication of alerts.
 
 - **RSI Monitor Improvements:**  
-	- Lookback on startup to catch missed alerts.
-	- Deduplication of alerts for the same candle.
+ 	- Lookback on startup to catch missed alerts.
+ 	- Deduplication of alerts for the same candle.
 
 - **Logging & Formatting:**  
-	- Float values normalized for log output (no np.float64 issues).
-	- Value color set to white, improved spacing.
-	- Structured logging via `structlog` (feature/structlog branch).
+ 	- Float values normalized for log output (no np.float64 issues).
+ 	- Value color set to white, improved spacing.
+ 	- Structured logging via `structlog` (feature/structlog branch).
 
 - **UI/UX:**  
-	- Active monitor tab coloring (tabs turn green when active).
-	- Wider combo boxes for contract selection.
-	- Sound notifications for strategy signals.
+ 	- Active monitor tab coloring (tabs turn green when active).
+ 	- Wider combo boxes for contract selection.
+ 	- Sound notifications for strategy signals.
 
 - **Codebase Maintenance:**  
-	- Deprecated modules removed.
-	- Documentation files relocated to `Documentation/`.
-	- Pre-commit hooks removed.
+ 	- Deprecated modules removed.
+ 	- Documentation files relocated to `Documentation/`.
+ 	- Pre-commit hooks removed.
 
 - **Auto-Refresh:**  
-	- Automatic data refresh when switching GUI tabs.
-	- Day and net positions displayed across CLI and GUIs.
+ 	- Automatic data refresh when switching GUI tabs.
+ 	- Day and net positions displayed across CLI and GUIs.
 
 ## ⚠️ Important Notes
 
@@ -282,7 +281,7 @@ python3.9 Application/gui_modern.py
 - Use Python 3.9 for all commands
 - Use `Core_Modules/` (underscore) for active code
 - Configure email and Discord settings in `Configuration/.env`
-- For Gmail: use App Password instead of regular password (https://myaccount.google.com/apppasswords)
+- For Gmail: use App Password instead of regular password (<https://myaccount.google.com/apppasswords>)
 
 ## 🔧 Troubleshooting
 
