@@ -1581,6 +1581,11 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Lower band: lowest low over lower_period
                     lower_band = low.rolling(window=lower_period).min().iloc[-1]
                     
+                    # Calculate previous candle's bands (excluding the last candle)
+                    prev_upper_band = high.iloc[:-1].rolling(window=upper_period).max().iloc[-1]
+                    prev_lower_band = low.iloc[:-1].rolling(window=lower_period).min().iloc[-1]
+                    prev_close = float(close.iloc[-2]) if len(close) > 1 else None
+                    
                     current_price = float(close.iloc[-1])
                     self.current_donchian_price = current_price
                     self.current_donchian_symbol = symbol
@@ -1602,7 +1607,36 @@ Capital Required: Rs.{capital_required:,.2f}
                         self._send_discord_alert(start_msg, color=0x3498DB)
                         first_run = False
                     
-                    # Check for breakouts
+                    # Check for previous candle close breakouts (earlier signal)
+                    if prev_close is not None:
+                        if prev_close > prev_upper_band:
+                            last_alert = f"PREV CANDLE CLOSE ABOVE at {datetime.now().strftime('%H:%M:%S')} | Close: {prev_close:.2f}"
+                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**20-Period High:** {prev_upper_band:.2f}\n**Status:** BULLISH SIGNAL (Prev Candle Close > 20-Period High)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            logger.warning(
+                                "donchian_alert_prev_candle_bullish",
+                                symbol=symbol,
+                                prev_close=round(prev_close, 2),
+                                prev_upper_band=round(prev_upper_band, 2)
+                            )
+                            dpg.set_value("donchian_last_alert", last_alert)
+                            dpg.configure_item("donchian_last_alert", color=(100,255,100))
+                            self._send_discord_alert(alert_msg, color=0x00FF00)
+                            self._play_alert_sound()
+                        elif prev_close < prev_lower_band:
+                            last_alert = f"PREV CANDLE CLOSE BELOW at {datetime.now().strftime('%H:%M:%S')} | Close: {prev_close:.2f}"
+                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**10-Period Low:** {prev_lower_band:.2f}\n**Status:** BEARISH SIGNAL (Prev Candle Close < 10-Period Low)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            logger.warning(
+                                "donchian_alert_prev_candle_bearish",
+                                symbol=symbol,
+                                prev_close=round(prev_close, 2),
+                                prev_lower_band=round(prev_lower_band, 2)
+                            )
+                            dpg.set_value("donchian_last_alert", last_alert)
+                            dpg.configure_item("donchian_last_alert", color=(255,100,100))
+                            self._send_discord_alert(alert_msg, color=0xFF0000)
+                            self._play_alert_sound()
+                    
+                    # Check for current price breakouts
                     if current_price > upper_band:
                         last_alert = f"BREAKOUT ABOVE at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
                         alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Status:** BULLISH BREAKOUT (Price > Upper Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
