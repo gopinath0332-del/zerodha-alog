@@ -56,8 +56,11 @@ Automated trading system for Zerodha using the KiteConnect API with advanced RSI
 
 - Modern GUI: DearPyGui-based trading terminal (recommended)
 - Dark theme, multiple tabs, dashboard, positions, orders, strategies
+- **Enhanced CLI: Feature-complete terminal interface (NEW!)**
+- All GUI features in CLI: portfolio, trading, strategy monitors, notifications
+- Perfect for headless servers and Raspberry Pi deployments
 - Classic GUI: tkinter-based alternative
-- CLI application: interactive menu
+- Simple CLI: Basic interactive menu
 - Launcher script for unified access
 
 ### Developer Tools
@@ -171,6 +174,14 @@ Or launch the modern GUI directly:
 python3.9 Application/gui_modern.py
 ```
 
+Or launch the enhanced CLI (recommended for Raspberry Pi):
+
+```bash
+./run_cli_enhanced.sh
+# OR
+python3.9 Application/main_enhanced.py
+```
+
 ## 🖥️ Modern Trading Terminal (DearPyGui)
 
 - Modern dark theme, GPU-accelerated
@@ -233,46 +244,54 @@ python3.9 Application/gui_modern.py
 
 ## 🆕 Recent Updates (Nov 2025)
 
-- **Email Alert System:**  
- 	- Unified notification system for both email (SMTP) and Discord alerts.
- 	- Configurable via `.env` (supports Gmail, Outlook, custom SMTP).
- 	- Alerts for RSI and Donchian signals.
+- **Email Alert System:**
 
-- **Heikin Ashi Candle Support:**  
- 	- Both NatgasMini RSI and GOLDPETAL Donchian monitors support Heikin Ashi candles.
- 	- Candle type selection via radio buttons (default: Heikin Ashi).
+  - Unified notification system for both email (SMTP) and Discord alerts.
+  - Configurable via `.env` (supports Gmail, Outlook, custom SMTP).
+  - Alerts for RSI and Donchian signals.
 
-- **Commodity Strategy Tabs:**  
- 	- Dedicated tabs for NatgasMini (RSI) and GOLDPETAL (Donchian).
- 	- Auto-loaded MCX futures, simplified UI (no exchange dropdowns).
+- **Heikin Ashi Candle Support:**
 
-- **Donchian Channel Enhancements:**  
- 	- Improved breakout detection using previous candle’s close.
- 	- Inclusive inequalities for signal detection.
- 	- Lookback feature for missed signals and deduplication of alerts.
+  - Both NatgasMini RSI and GOLDPETAL Donchian monitors support Heikin Ashi candles.
+  - Candle type selection via radio buttons (default: Heikin Ashi).
 
-- **RSI Monitor Improvements:**  
- 	- Lookback on startup to catch missed alerts.
- 	- Deduplication of alerts for the same candle.
+- **Commodity Strategy Tabs:**
 
-- **Logging & Formatting:**  
- 	- Float values normalized for log output (no np.float64 issues).
- 	- Value color set to white, improved spacing.
- 	- Structured logging via `structlog` (feature/structlog branch).
+  - Dedicated tabs for NatgasMini (RSI) and GOLDPETAL (Donchian).
+  - Auto-loaded MCX futures, simplified UI (no exchange dropdowns).
 
-- **UI/UX:**  
- 	- Active monitor tab coloring (tabs turn green when active).
- 	- Wider combo boxes for contract selection.
- 	- Sound notifications for strategy signals.
+- **Donchian Channel Enhancements:**
 
-- **Codebase Maintenance:**  
- 	- Deprecated modules removed.
- 	- Documentation files relocated to `Documentation/`.
- 	- Pre-commit hooks removed.
+  - Improved breakout detection using previous candle’s close.
+  - Inclusive inequalities for signal detection.
+  - Lookback feature for missed signals and deduplication of alerts.
 
-- **Auto-Refresh:**  
- 	- Automatic data refresh when switching GUI tabs.
- 	- Day and net positions displayed across CLI and GUIs.
+- **RSI Monitor Improvements:**
+
+  - Lookback on startup to catch missed alerts.
+  - Deduplication of alerts for the same candle.
+
+- **Logging & Formatting:**
+
+  - Float values normalized for log output (no np.float64 issues).
+  - Value color set to white, improved spacing.
+  - Structured logging via `structlog` (feature/structlog branch).
+
+- **UI/UX:**
+
+  - Active monitor tab coloring (tabs turn green when active).
+  - Wider combo boxes for contract selection.
+  - Sound notifications for strategy signals.
+
+- **Codebase Maintenance:**
+
+  - Deprecated modules removed.
+  - Documentation files relocated to `Documentation/`.
+  - Pre-commit hooks removed.
+
+- **Auto-Refresh:**
+  - Automatic data refresh when switching GUI tabs.
+  - Day and net positions displayed across CLI and GUIs.
 
 ## ⚠️ Important Notes
 
