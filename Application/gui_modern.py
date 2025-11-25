@@ -402,12 +402,19 @@ class ModernTradingGUI:
         dpg.add_text("Portfolio Summary", tag="portfolio_title")
         dpg.add_separator()
         
-        # Summary metrics in a group
+        # Summary metrics in a 3x3 grid
         with dpg.group(tag="portfolio_metrics"):
+            # Row 1
             with dpg.group(horizontal=True):
                 with dpg.child_window(width=300, height=120):
                     dpg.add_text("Available Margin", color=(150, 150, 150))
                     dpg.add_text("Rs.0.00", tag="margin_available", color=(100, 200, 100))
+                
+                dpg.add_spacer(width=20)
+                
+                with dpg.child_window(width=300, height=120):
+                    dpg.add_text("Capital Used", color=(150, 150, 150))
+                    dpg.add_text("Rs.0.00", tag="capital_used", color=(255, 200, 100))
                 
                 dpg.add_spacer(width=20)
                 
@@ -417,6 +424,7 @@ class ModernTradingGUI:
             
             dpg.add_spacer(height=10)
             
+            # Row 2
             with dpg.group(horizontal=True):
                 with dpg.child_window(width=300, height=120):
                     dpg.add_text("Holdings P&L", color=(150, 150, 150))
@@ -427,13 +435,12 @@ class ModernTradingGUI:
                 with dpg.child_window(width=300, height=120):
                     dpg.add_text("Total P&L", color=(150, 150, 150))
                     dpg.add_text("Rs.0.00", tag="pnl_total", color=(100, 200, 100))
-            
-            dpg.add_spacer(height=10)
-            
-            with dpg.group(horizontal=True):
+                
+                dpg.add_spacer(width=20)
+                
                 with dpg.child_window(width=300, height=120):
-                    dpg.add_text("Capital Used", color=(150, 150, 150))
-                    dpg.add_text("Rs.0.00", tag="capital_used", color=(255, 200, 100))
+                    dpg.add_text("", color=(150, 150, 150))
+                    dpg.add_text("", color=(100, 200, 100))
         
         dpg.add_separator()
         
