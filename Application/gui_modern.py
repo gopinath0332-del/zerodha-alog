@@ -205,6 +205,7 @@ class ModernTradingGUI:
                             dpg.add_table_column(label="Symbol")
                             dpg.add_table_column(label="Quantity")
                             dpg.add_table_column(label="Avg Price")
+                            dpg.add_table_column(label="Invested")
                             dpg.add_table_column(label="LTP")
                             dpg.add_table_column(label="P&L")
                 
@@ -834,6 +835,36 @@ Token saved. You can now start trading!"""
                         dpg.add_text(p['tradingsymbol'])
                         dpg.add_text(f"{p['quantity']:,}")
                         dpg.add_text(f"Rs.{p['average_price']:.2f}")
+                        
+                        # Calculate actual margin/capital used for this position
+                        # Use order_margins API to get the correct margin requirement
+                        try:
+                            margin_data = self.trader.kite.order_margins([{
+                                'exchange': p['exchange'],
+                                'tradingsymbol': p['tradingsymbol'],
+                                'transaction_type': 'BUY' if p['quantity'] > 0 else 'SELL',
+                                'variety': 'regular',
+                                'product': p['product'],
+                                'order_type': 'MARKET',
+                                'quantity': abs(p['quantity']),
+                                'price': 0,
+                                'trigger_price': 0
+                            }])
+                            
+                            # Extract total margin required
+                            if margin_data and len(margin_data) > 0:
+                                invested = margin_data[0].get('total', 0)
+                            else:
+                                # Fallback to buy_value/sell_value if margin calculation fails
+                                invested = p.get('buy_value', 0) if p['quantity'] > 0 else p.get('sell_value', 0)
+                        except Exception as e:
+                            logger.warning("margin_calculation_failed", 
+                                         symbol=p['tradingsymbol'], 
+                                         error=str(e))
+                            # Fallback to buy_value/sell_value
+                            invested = p.get('buy_value', 0) if p['quantity'] > 0 else p.get('sell_value', 0)
+                        
+                        dpg.add_text(f"Rs.{invested:,.2f}")
                         dpg.add_text(f"Rs.{p['last_price']:.2f}")
                         pnl_color = (100, 255, 100) if p['pnl'] >= 0 else (255, 100, 100)
                         dpg.add_text(f"Rs.{p['pnl']:.2f}", color=pnl_color)
