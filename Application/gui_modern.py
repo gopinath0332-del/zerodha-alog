@@ -443,12 +443,6 @@ class ModernTradingGUI:
                     dpg.add_text("", color=(100, 200, 100))
         
         dpg.add_separator()
-        
-        # P&L Chart placeholder
-        with dpg.plot(label="Portfolio Performance", height=300, width=-1, tag="portfolio_chart"):
-            dpg.add_plot_legend()
-            dpg.add_plot_axis(dpg.mvXAxis, label="", tag="portfolio_x_axis")
-            dpg.add_plot_axis(dpg.mvYAxis, label="P&L (Rs.)", tag="portfolio_y_axis")
     
     def authenticate(self):
         """Try to authenticate with existing token"""
