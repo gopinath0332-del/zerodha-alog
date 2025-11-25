@@ -200,11 +200,13 @@ class EnhancedTradingCLI:
         try:
             positions = self.trader.get_positions()
             
-            day_positions = [p for p in positions.get('day', []) if p['quantity'] != 0]
-            net_positions = [p for p in positions.get('net', []) if p['quantity'] != 0]
+            # Include positions with 0 quantity if they have P&L (realized P&L)
+            day_positions = [p for p in positions.get('day', []) if p['quantity'] != 0 or p['pnl'] != 0]
+            net_positions = [p for p in positions.get('net', []) if p['quantity'] != 0 or p['pnl'] != 0]
             
             # Filter out duplicates
             day_symbols = {p['tradingsymbol'] for p in day_positions}
+            # Net positions take precedence if they have quantity or P&L
             net_only = [p for p in net_positions if p['tradingsymbol'] not in day_symbols]
             
             if not day_positions and not net_only:
@@ -219,17 +221,15 @@ class EnhancedTradingCLI:
             
             if day_positions:
                 print(f"{Fore.YELLOW}DAY POSITIONS (MIS):")
-                headers = ["Symbol", "Qty", "Avg Price", "LTP", "Invested", "P&L"]
+                headers = ["Symbol", "Qty", "Avg Price", "LTP", "P&L"]
                 data = []
                 
                 for pos in day_positions:
-                    invested = abs(pos['quantity']) * pos['average_price']
                     data.append([
                         pos['tradingsymbol'],
                         pos['quantity'],
                         f"₹{pos['average_price']:.2f}",
                         f"₹{pos['last_price']:.2f}",
-                        f"₹{invested:,.2f}",
                         self._format_pnl(pos['pnl'])
                     ])
                     total_pnl += pos['pnl']
@@ -239,17 +239,15 @@ class EnhancedTradingCLI:
             
             if net_only:
                 print(f"{Fore.YELLOW}NET POSITIONS (NRML/Carry-forward):")
-                headers = ["Symbol", "Qty", "Avg Price", "LTP", "Invested", "P&L"]
+                headers = ["Symbol", "Qty", "Avg Price", "LTP", "P&L"]
                 data = []
                 
                 for pos in net_only:
-                    invested = abs(pos['quantity']) * pos['average_price']
                     data.append([
                         pos['tradingsymbol'],
                         pos['quantity'],
                         f"₹{pos['average_price']:.2f}",
                         f"₹{pos['last_price']:.2f}",
-                        f"₹{invested:,.2f}",
                         self._format_pnl(pos['pnl'])
                     ])
                     total_pnl += pos['pnl']
