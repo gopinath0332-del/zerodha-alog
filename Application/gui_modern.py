@@ -1703,7 +1703,7 @@ Capital Required: Rs.{capital_required:,.2f}
                             if len(lookback_high) >= upper_period:
                                 lookback_upper = lookback_high.iloc[:-1].rolling(window=upper_period).max().iloc[-1]
                                 
-                                if lookback_close > lookback_upper:
+                                if lookback_close >= lookback_upper:
                                     alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**Close:** {lookback_close:.2f}\n**20-Period High:** {lookback_upper:.2f}\n**Status:** BULLISH SIGNAL (Close > 20-Period High)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                                     logger.warning(
                                         "donchian_lookback_bullish",
@@ -1717,7 +1717,7 @@ Capital Required: Rs.{capital_required:,.2f}
                             if len(lookback_low) >= lower_period:
                                 lookback_lower = lookback_low.iloc[:-1].rolling(window=lower_period).min().iloc[-1]
                                 
-                                if lookback_close < lookback_lower:
+                                if lookback_close <= lookback_lower:
                                     alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**Close:** {lookback_close:.2f}\n**10-Period Low:** {lookback_lower:.2f}\n**Status:** BEARISH SIGNAL (Close < 10-Period Low)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                                     logger.warning(
                                         "donchian_lookback_bearish",
@@ -1744,9 +1744,9 @@ Capital Required: Rs.{capital_required:,.2f}
                             already_alerted=prev_candle_timestamp in self.donchian_alerted_candles
                         )
                         
-                        if prev_close > prev_upper_band and prev_candle_timestamp not in self.donchian_alerted_candles:
+                        if prev_close >= prev_upper_band and prev_candle_timestamp not in self.donchian_alerted_candles:
                             last_alert = f"PREV CANDLE CLOSE ABOVE at {datetime.now().strftime('%H:%M:%S')} | Close: {prev_close:.2f}"
-                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**20-Period High:** {prev_upper_band:.2f}\n**Status:** BULLISH SIGNAL (Prev Candle Close > 20-Period High)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**20-Period High:** {prev_upper_band:.2f}\n**Status:** BULLISH SIGNAL (Prev Candle Close >= 20-Period High)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                             logger.warning(
                                 "donchian_alert_prev_candle_bullish",
                                 symbol=symbol,
@@ -1758,9 +1758,9 @@ Capital Required: Rs.{capital_required:,.2f}
                             self._send_discord_alert(alert_msg, color=0x00FF00)
                             self._play_alert_sound()
                             self.donchian_alerted_candles.add(prev_candle_timestamp)
-                        elif prev_close < prev_lower_band and prev_candle_timestamp not in self.donchian_alerted_candles:
+                        elif prev_close <= prev_lower_band and prev_candle_timestamp not in self.donchian_alerted_candles:
                             last_alert = f"PREV CANDLE CLOSE BELOW at {datetime.now().strftime('%H:%M:%S')} | Close: {prev_close:.2f}"
-                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**10-Period Low:** {prev_lower_band:.2f}\n**Status:** BEARISH SIGNAL (Prev Candle Close < 10-Period Low)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**10-Period Low:** {prev_lower_band:.2f}\n**Status:** BEARISH SIGNAL (Prev Candle Close <= 10-Period Low)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                             logger.warning(
                                 "donchian_alert_prev_candle_bearish",
                                 symbol=symbol,
@@ -1782,9 +1782,9 @@ Capital Required: Rs.{capital_required:,.2f}
                         already_alerted=current_candle_timestamp in self.donchian_alerted_candles
                     )
                     
-                    if current_price > upper_band and current_candle_timestamp not in self.donchian_alerted_candles:
+                    if current_price >= upper_band and current_candle_timestamp not in self.donchian_alerted_candles:
                         last_alert = f"BREAKOUT ABOVE at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
-                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Status:** BULLISH BREAKOUT (Price > Upper Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Status:** BULLISH BREAKOUT (Price >= Upper Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         logger.warning(
                             "donchian_alert_bullish_breakout",
                             symbol=symbol,
@@ -1796,9 +1796,9 @@ Capital Required: Rs.{capital_required:,.2f}
                         self._send_discord_alert(alert_msg, color=0x33FF57)
                         self._play_alert_sound()
                         self.donchian_alerted_candles.add(current_candle_timestamp)
-                    elif current_price < lower_band and current_candle_timestamp not in self.donchian_alerted_candles:
+                    elif current_price <= lower_band and current_candle_timestamp not in self.donchian_alerted_candles:
                         last_alert = f"BREAKDOWN BELOW at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
-                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** BEARISH BREAKDOWN (Price < Lower Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** BEARISH BREAKDOWN (Price <= Lower Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         logger.warning(
                             "donchian_alert_bearish_breakout",
                             symbol=symbol,
