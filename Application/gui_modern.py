@@ -86,6 +86,7 @@ class ModernTradingGUI:
         self.rsi_monitor_running = False  # Track RSI monitor state
         self.current_rsi_value = None  # Track current RSI value for alerts
         self.current_rsi_symbol = None  # Track symbol being monitored
+        self.rsi_alerted_candles = set()  # Track candle timestamps that triggered RSI alerts
         self.donchian_monitor_running = False  # Track Donchian monitor state
         self.current_donchian_price = None  # Track current price
         self.current_donchian_symbol = None  # Track symbol being monitored
@@ -1259,6 +1260,7 @@ Capital Required: Rs.{capital_required:,.2f}
             return
         
         self.rsi_monitor_running = True
+        self.rsi_alerted_candles = set()  # Reset alert tracking for new monitoring session
         dpg.configure_item("rsi_start_btn", show=False)
         dpg.configure_item("rsi_stop_btn", show=True)
         
@@ -1370,11 +1372,81 @@ Capital Required: Rs.{capital_required:,.2f}
                     )
                     dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
                     nonlocal first_run, last_alert
+                    
                     if first_run:
                         start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**RSI:** {current_rsi:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         self._send_discord_alert(start_msg, color=0x3498DB)
+                        
+                        # LOOKBACK FEATURE: Check last 10 candles for missed RSI signals on startup
+                        lookback_count = min(10, len(df) - 1)  # Check last 10 candles or all available
+                        logger.info("rsi_lookback_start", lookback_count=lookback_count)
+                        
+                        for i in range(lookback_count, 0, -1):  # Start from oldest to newest
+                            idx = -1 - i  # Index from end of dataframe
+                            candle_date = df['date'].iloc[idx]
+                            candle_timestamp = candle_date.isoformat()
+                            
+                            # Skip if already alerted
+                            if candle_timestamp in self.rsi_alerted_candles:
+                                continue
+                            
+                            # Calculate RSI for this historical candle
+                            if candle_type == "Heikin Ashi":
+                                from Core_Modules.strategies import TradingStrategies
+                                ha_df_lookback = TradingStrategies.heikin_ashi(df.iloc[:idx+1])
+                                close_lookback = ha_df_lookback['ha_close']
+                            else:
+                                close_lookback = df['close'].iloc[:idx+1]
+                            
+                            if len(close_lookback) >= period + 1:
+                                delta_lb = close_lookback.diff()
+                                gain_lb = delta_lb.where(delta_lb > 0, 0)
+                                loss_lb = -delta_lb.where(delta_lb < 0, 0)
+                                avg_gain_lb = gain_lb.rolling(window=period, min_periods=period).mean()
+                                avg_loss_lb = loss_lb.rolling(window=period, min_periods=period).mean()
+                                
+                                for j in range(period, len(gain_lb)):
+                                    avg_gain_lb.iloc[j] = (avg_gain_lb.iloc[j-1] * (period - 1) + gain_lb.iloc[j]) / period
+                                    avg_loss_lb.iloc[j] = (avg_loss_lb.iloc[j-1] * (period - 1) + loss_lb.iloc[j]) / period
+                                
+                                rs_lb = avg_gain_lb / avg_loss_lb
+                                rsi_lb = 100 - (100 / (1 + rs_lb))
+                                lookback_rsi = float(rsi_lb.iloc[-1])
+                                
+                                if lookback_rsi > 70:
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    logger.warning(
+                                        "rsi_lookback_overbought",
+                                        candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
+                                        rsi=round(lookback_rsi, 2)
+                                    )
+                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self.rsi_alerted_candles.add(candle_timestamp)
+                                elif lookback_rsi < 30:
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    logger.warning(
+                                        "rsi_lookback_oversold",
+                                        candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
+                                        rsi=round(lookback_rsi, 2)
+                                    )
+                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self.rsi_alerted_candles.add(candle_timestamp)
+                        
                         first_run = False
-                    if current_rsi > 70:
+                    
+                    # Get current candle timestamp for deduplication
+                    current_candle_timestamp = df['date'].iloc[-1].isoformat()
+                    
+                    # Check for RSI alerts with deduplication
+                    logger.debug(
+                        "rsi_current_check",
+                        current_rsi=round(current_rsi, 2),
+                        overbought_threshold=70,
+                        oversold_threshold=30,
+                        already_alerted=current_candle_timestamp in self.rsi_alerted_candles
+                    )
+                    
+                    if current_rsi > 70 and current_candle_timestamp not in self.rsi_alerted_candles:
                         last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S')}"
                         alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         logger.warning(
@@ -1387,7 +1459,8 @@ Capital Required: Rs.{capital_required:,.2f}
                         dpg.configure_item("rsi_last_alert", color=(255,100,100))
                         self._send_discord_alert(alert_msg, color=0xFF5733)
                         self._play_alert_sound()
-                    elif current_rsi < 30:
+                        self.rsi_alerted_candles.add(current_candle_timestamp)
+                    elif current_rsi < 30 and current_candle_timestamp not in self.rsi_alerted_candles:
                         last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S')}"
                         alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         logger.warning(
@@ -1400,6 +1473,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         dpg.configure_item("rsi_last_alert", color=(100,255,100))
                         self._send_discord_alert(alert_msg, color=0x33FF57)
                         self._play_alert_sound()
+                        self.rsi_alerted_candles.add(current_candle_timestamp)
                     else:
                         dpg.set_value("rsi_last_alert", last_alert)
                     dpg.set_value("rsi_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
