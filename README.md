@@ -231,14 +231,49 @@ python3.9 Application/gui_modern.py
 
 ## 🆕 Recent Updates
 
-- Email alert system with SMTP support (Gmail, Outlook, custom servers)
-- Unified notification system supporting both email and Discord
-- Heikin Ashi candle support for both strategies (radio button, default selected)
-- Commodity tabs with auto-loaded MCX futures
-- UI simplification (no exchange dropdowns)
-- Float log formatting normalized
-- Pre-commit hooks removed
-- Improved logging (white value color, spacing)
+
+## 🆕 Recent Updates (Nov 2025)
+
+- **Email Alert System:**  
+	- Unified notification system for both email (SMTP) and Discord alerts.
+	- Configurable via `.env` (supports Gmail, Outlook, custom SMTP).
+	- Alerts for RSI and Donchian signals.
+
+- **Heikin Ashi Candle Support:**  
+	- Both NatgasMini RSI and GOLDPETAL Donchian monitors support Heikin Ashi candles.
+	- Candle type selection via radio buttons (default: Heikin Ashi).
+
+- **Commodity Strategy Tabs:**  
+	- Dedicated tabs for NatgasMini (RSI) and GOLDPETAL (Donchian).
+	- Auto-loaded MCX futures, simplified UI (no exchange dropdowns).
+
+- **Donchian Channel Enhancements:**  
+	- Improved breakout detection using previous candle’s close.
+	- Inclusive inequalities for signal detection.
+	- Lookback feature for missed signals and deduplication of alerts.
+
+- **RSI Monitor Improvements:**  
+	- Lookback on startup to catch missed alerts.
+	- Deduplication of alerts for the same candle.
+
+- **Logging & Formatting:**  
+	- Float values normalized for log output (no np.float64 issues).
+	- Value color set to white, improved spacing.
+	- Structured logging via `structlog` (feature/structlog branch).
+
+- **UI/UX:**  
+	- Active monitor tab coloring (tabs turn green when active).
+	- Wider combo boxes for contract selection.
+	- Sound notifications for strategy signals.
+
+- **Codebase Maintenance:**  
+	- Deprecated modules removed.
+	- Documentation files relocated to `Documentation/`.
+	- Pre-commit hooks removed.
+
+- **Auto-Refresh:**  
+	- Automatic data refresh when switching GUI tabs.
+	- Day and net positions displayed across CLI and GUIs.
 
 ## ⚠️ Important Notes
 
