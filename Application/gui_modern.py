@@ -205,6 +205,7 @@ class ModernTradingGUI:
                             dpg.add_table_column(label="Symbol")
                             dpg.add_table_column(label="Quantity")
                             dpg.add_table_column(label="Avg Price")
+                            dpg.add_table_column(label="Invested")
                             dpg.add_table_column(label="LTP")
                             dpg.add_table_column(label="P&L")
                 
@@ -401,8 +402,9 @@ class ModernTradingGUI:
         dpg.add_text("Portfolio Summary", tag="portfolio_title")
         dpg.add_separator()
         
-        # Summary metrics in a group
+        # Summary metrics in a 3x3 grid
         with dpg.group(tag="portfolio_metrics"):
+            # Row 1
             with dpg.group(horizontal=True):
                 with dpg.child_window(width=300, height=120):
                     dpg.add_text("Available Margin", color=(150, 150, 150))
@@ -411,29 +413,36 @@ class ModernTradingGUI:
                 dpg.add_spacer(width=20)
                 
                 with dpg.child_window(width=300, height=120):
-                    dpg.add_text("Total P&L", color=(150, 150, 150))
-                    dpg.add_text("Rs.0.00", tag="pnl_total", color=(100, 200, 100))
-            
-            dpg.add_spacer(height=10)
-            
-            with dpg.group(horizontal=True):
-                with dpg.child_window(width=300, height=120):
-                    dpg.add_text("Day Positions P&L", color=(150, 150, 150))
-                    dpg.add_text("Rs.0.00", tag="pnl_day", color=(100, 200, 100))
+                    dpg.add_text("Capital Used", color=(150, 150, 150))
+                    dpg.add_text("Rs.0.00", tag="capital_used", color=(255, 200, 100))
                 
                 dpg.add_spacer(width=20)
                 
                 with dpg.child_window(width=300, height=120):
+                    dpg.add_text("Position P&L", color=(150, 150, 150))
+                    dpg.add_text("Rs.0.00", tag="pnl_positions", color=(100, 200, 100))
+            
+            dpg.add_spacer(height=10)
+            
+            # Row 2
+            with dpg.group(horizontal=True):
+                with dpg.child_window(width=300, height=120):
                     dpg.add_text("Holdings P&L", color=(150, 150, 150))
                     dpg.add_text("Rs.0.00", tag="pnl_holdings", color=(100, 200, 100))
+                
+                dpg.add_spacer(width=20)
+                
+                with dpg.child_window(width=300, height=120):
+                    dpg.add_text("Total P&L", color=(150, 150, 150))
+                    dpg.add_text("Rs.0.00", tag="pnl_total", color=(100, 200, 100))
+                
+                dpg.add_spacer(width=20)
+                
+                with dpg.child_window(width=300, height=120):
+                    dpg.add_text("", color=(150, 150, 150))
+                    dpg.add_text("", color=(100, 200, 100))
         
         dpg.add_separator()
-        
-        # P&L Chart placeholder
-        with dpg.plot(label="Portfolio Performance", height=300, width=-1, tag="portfolio_chart"):
-            dpg.add_plot_legend()
-            dpg.add_plot_axis(dpg.mvXAxis, label="", tag="portfolio_x_axis")
-            dpg.add_plot_axis(dpg.mvYAxis, label="P&L (Rs.)", tag="portfolio_y_axis")
     
     def authenticate(self):
         """Try to authenticate with existing token"""
@@ -782,18 +791,19 @@ Token saved. You can now start trading!"""
                 
                 # Update metrics
                 dpg.set_value("margin_available", f"Rs.{summary['available_margin']:,.2f}")
-                dpg.set_value("pnl_total", f"Rs.{summary['total_pnl']:,.2f}")
-                dpg.set_value("pnl_day", f"Rs.{summary['day_positions_pnl']:,.2f}")
+                dpg.set_value("pnl_positions", f"Rs.{summary['positions_pnl']:,.2f}")
                 dpg.set_value("pnl_holdings", f"Rs.{summary['holdings_pnl']:,.2f}")
+                dpg.set_value("pnl_total", f"Rs.{summary['total_pnl']:,.2f}")
+                dpg.set_value("capital_used", f"Rs.{summary['capital_used']:,.2f}")
                 
                 # Set colors based on P&L
-                color_total = (100, 255, 100) if summary['total_pnl'] >= 0 else (255, 100, 100)
-                color_day = (100, 255, 100) if summary['day_positions_pnl'] >= 0 else (255, 100, 100)
+                color_positions = (100, 255, 100) if summary['positions_pnl'] >= 0 else (255, 100, 100)
                 color_holdings = (100, 255, 100) if summary['holdings_pnl'] >= 0 else (255, 100, 100)
+                color_total = (100, 255, 100) if summary['total_pnl'] >= 0 else (255, 100, 100)
                 
-                dpg.configure_item("pnl_total", color=color_total)
-                dpg.configure_item("pnl_day", color=color_day)
+                dpg.configure_item("pnl_positions", color=color_positions)
                 dpg.configure_item("pnl_holdings", color=color_holdings)
+                dpg.configure_item("pnl_total", color=color_total)
                 
             except Exception as e:
                 logger.error("portfolio_load_failed", error=str(e), exc_info=True)
@@ -834,6 +844,36 @@ Token saved. You can now start trading!"""
                         dpg.add_text(p['tradingsymbol'])
                         dpg.add_text(f"{p['quantity']:,}")
                         dpg.add_text(f"Rs.{p['average_price']:.2f}")
+                        
+                        # Calculate actual margin/capital used for this position
+                        # Use order_margins API to get the correct margin requirement
+                        try:
+                            margin_data = self.trader.kite.order_margins([{
+                                'exchange': p['exchange'],
+                                'tradingsymbol': p['tradingsymbol'],
+                                'transaction_type': 'BUY' if p['quantity'] > 0 else 'SELL',
+                                'variety': 'regular',
+                                'product': p['product'],
+                                'order_type': 'MARKET',
+                                'quantity': abs(p['quantity']),
+                                'price': 0,
+                                'trigger_price': 0
+                            }])
+                            
+                            # Extract total margin required
+                            if margin_data and len(margin_data) > 0:
+                                invested = margin_data[0].get('total', 0)
+                            else:
+                                # Fallback to buy_value/sell_value if margin calculation fails
+                                invested = p.get('buy_value', 0) if p['quantity'] > 0 else p.get('sell_value', 0)
+                        except Exception as e:
+                            logger.warning("margin_calculation_failed", 
+                                         symbol=p['tradingsymbol'], 
+                                         error=str(e))
+                            # Fallback to buy_value/sell_value
+                            invested = p.get('buy_value', 0) if p['quantity'] > 0 else p.get('sell_value', 0)
+                        
+                        dpg.add_text(f"Rs.{invested:,.2f}")
                         dpg.add_text(f"Rs.{p['last_price']:.2f}")
                         pnl_color = (100, 255, 100) if p['pnl'] >= 0 else (255, 100, 100)
                         dpg.add_text(f"Rs.{p['pnl']:.2f}", color=pnl_color)
