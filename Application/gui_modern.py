@@ -1894,13 +1894,12 @@ Capital Required: Rs.{capital_required:,.2f}
                     try:
                         do_doubledip_analysis()
                         
-                        # Sleep logic (similar to Donchian)
+                        # Sleep logic - wait until next hour boundary
                         now = datetime.now(ist)
                         next_run = next_market_hour_boundary(now)
                         sleep_seconds = (next_run - now).total_seconds() + 5
                         
-                        # Cap sleep at 60s for responsiveness
-                        sleep_seconds = min(sleep_seconds, 60)
+                        logger.info("doubledip_next_check", next_check_time=next_run.strftime('%Y-%m-%d %H:%M:%S'), sleep_seconds=int(sleep_seconds))
                         time.sleep(sleep_seconds)
                         
                     except Exception as e:
