@@ -369,7 +369,7 @@ class ModernTradingGUI:
                             dpg.add_button(label="Stop Monitor", tag="rsi_stop_btn", callback=self.stop_rsi_monitor, show=False)
                         dpg.add_spacer(height=10)
                         dpg.add_text("Current RSI: --", tag="rsi_current_value", color=(200,200,255))
-                        dpg.add_text("Live RSI: --", tag="rsi_live_value", color=(255,255,0))
+
                         dpg.add_text("Last Alert: --", tag="rsi_last_alert", color=(255,200,100))
                         dpg.add_spacer(height=10)
                         dpg.add_text("Status: Idle", tag="rsi_status", color=(150,150,150))
@@ -444,7 +444,7 @@ class ModernTradingGUI:
                         # Status display
                         dpg.add_text("Status: Not running", tag="doubledip_status", color=(150,150,150))
                         dpg.add_text("RSI: --", tag="doubledip_current_rsi", color=(255,255,255))
-                        dpg.add_text("Live RSI: --", tag="doubledip_live_rsi", color=(255,255,0))
+
                         dpg.add_text("Last Signal: --", tag="doubledip_last_signal", color=(150,150,150))
                         
                         dpg.add_separator()
@@ -1386,7 +1386,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         logger.error("instrument_token_not_found", symbol=symbol)
                         dpg.set_value("rsi_status", f"Instrument token not found for {symbol}")
                         dpg.configure_item("rsi_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFF0000)
+                        self._send_alert(error_msg, color=0xFF0000)
                         return False
                     data = kite.historical_data(
                         instrument_token=instrument_token,
@@ -1400,7 +1400,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         logger.warning("no_data_received_from_api")
                         dpg.set_value("rsi_status", "No data found or API error.")
                         dpg.configure_item("rsi_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFFA500)
+                        self._send_alert(error_msg, color=0xFFA500)
                         time.sleep(60)
                         return False
                     df['date'] = pd.to_datetime(df['date'])
@@ -1413,7 +1413,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         logger.warning("not_enough_candles", count=len(df), required=100)
                         dpg.set_value("rsi_status", "Not enough historical candles (need 100+)")
                         dpg.configure_item("rsi_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFFA500)
+                        self._send_alert(error_msg, color=0xFFA500)
                         return False
                     # Candle type selection
                     candle_type = dpg.get_value("rsi_candle_type")
@@ -1458,12 +1458,12 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Show RSI with candle time for clarity (using completed candle)
                     candle_time_str = df['date'].iloc[display_rsi_idx].strftime('%d %b %H:%M')
                     dpg.set_value("rsi_current_value", f"RSI ({candle_time_str}): {display_rsi:.2f}")
-                    dpg.set_value("rsi_live_value", f"Live RSI: {current_rsi:.2f}")
+
                     nonlocal first_run, last_alert
                     
                     if first_run:
                         start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**RSI:** {current_rsi:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        self._send_discord_alert(start_msg, color=0x3498DB)
+                        self._send_alert(start_msg, color=0x3498DB)
                         
                         # LOOKBACK FEATURE: Check last 10 candles for missed RSI signals on startup
                         lookback_count = min(10, len(df) - 1)  # Check last 10 candles or all available
@@ -1508,7 +1508,7 @@ Capital Required: Rs.{capital_required:,.2f}
                                         candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
                                         rsi=round(lookback_rsi, 2)
                                     )
-                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self._send_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
                                     self.rsi_alerted_candles.add(candle_timestamp)
                                 elif lookback_rsi < 30:
                                     alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
@@ -1517,7 +1517,7 @@ Capital Required: Rs.{capital_required:,.2f}
                                         candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
                                         rsi=round(lookback_rsi, 2)
                                     )
-                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self._send_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
                                     self.rsi_alerted_candles.add(candle_timestamp)
                         
                         first_run = False
@@ -1545,7 +1545,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         )
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(255,100,100))
-                        self._send_discord_alert(alert_msg, color=0xFF5733)
+                        self._send_alert(alert_msg, color=0xFF5733)
                         self._play_alert_sound()
                         self.rsi_alerted_candles.add(current_candle_timestamp)
                     elif current_rsi < 30 and current_candle_timestamp not in self.rsi_alerted_candles:
@@ -1559,7 +1559,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         )
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(100,255,100))
-                        self._send_discord_alert(alert_msg, color=0x33FF57)
+                        self._send_alert(alert_msg, color=0x33FF57)
                         self._play_alert_sound()
                         self.rsi_alerted_candles.add(current_candle_timestamp)
                     else:
@@ -1587,12 +1587,12 @@ Capital Required: Rs.{capital_required:,.2f}
                 logger.error("rsi_monitor_exception", error=str(e), exc_info=True)
                 dpg.set_value("rsi_status", f"Error: {str(e)}")
                 dpg.configure_item("rsi_status", color=(255,100,100))
-                self._send_discord_alert(error_msg, color=0xFF0000)
+                self._send_alert(error_msg, color=0xFF0000)
             finally:
                 rsi_info = f"\n**RSI:** {self.current_rsi_value:.2f}" if self.current_rsi_value else ""
                 stop_msg = f"**Symbol:** {symbol}{rsi_info}\n**Status:** Monitor Stopped (Thread Exit)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 logger.info("rsi_monitor_stopped", symbol=symbol)
-                self._send_discord_alert(stop_msg, color=0x808080)
+                self._send_alert(stop_msg, color=0x808080)
                 self.rsi_monitor_running = False
                 dpg.configure_item("rsi_start_btn", show=True)
                 dpg.configure_item("rsi_stop_btn", show=False)
@@ -1610,7 +1610,7 @@ Capital Required: Rs.{capital_required:,.2f}
         symbol_info = f"**Symbol:** {self.current_rsi_symbol}\n" if self.current_rsi_symbol else ""
         rsi_info = f"**RSI:** {self.current_rsi_value:.2f}\n" if self.current_rsi_value else ""
         stop_msg = f"{symbol_info}{rsi_info}**Status:** Monitor Stopped (User Request)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        self._send_discord_alert(stop_msg, color=0x808080)  # Gray
+        self._send_alert(stop_msg, color=0x808080)  # Gray
         
         dpg.set_value("rsi_status", "Monitor stopped")
         dpg.configure_item("rsi_status", color=(255,150,0))
@@ -1785,12 +1785,14 @@ Capital Required: Rs.{capital_required:,.2f}
                     candle_time_str = df['date'].iloc[display_rsi_idx].strftime('%d %b %H:%M')
                     dpg.set_value("doubledip_current_rsi", f"RSI ({candle_time_str}): {current_rsi:.2f}")
                     
-                    # Calculate and display Live RSI (from the very last candle, regardless of completion)
-                    live_rsi = float(rsi.iloc[-1])
-                    dpg.set_value("doubledip_live_rsi", f"Live RSI: {live_rsi:.2f}")
+
                     
                     # Lookback on first run
                     if first_run:
+                        # Send Start Alert
+                        start_msg = f"**DOUBLE-DIP MONITOR STARTED**\n\n**Symbol:** {symbol}\n**Interval:** {interval}\n**RSI:** {current_rsi:.2f}\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        self._send_alert(start_msg, color=0x3498DB)
+                        
                         # Check entire history (30 days) for the last signal to populate UI
                         lookback_count = len(df) - rsi_period
                         
@@ -1830,7 +1832,7 @@ Capital Required: Rs.{capital_required:,.2f}
                                 if idx >= len(df) - 10 and candle_timestamp not in self.doubledip_alerted_candles:
                                     alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {curr_rsi_val:.2f} (Prev: {prev_rsi_val:.2f})\n**Status:** LONG SIGNAL (RSI Cross Over 30)"
                                     logger.warning("doubledip_lookback_long", rsi=curr_rsi_val, time=candle_date)
-                                    self._send_discord_alert(alert_msg, color=0xFFD700)
+                                    self._send_alert(alert_msg, color=0xFFD700)
                                     self.doubledip_alerted_candles.add(candle_timestamp)
                             
                             # Check for CLOSE signal (cross under 30)
@@ -1846,7 +1848,7 @@ Capital Required: Rs.{capital_required:,.2f}
                                 if idx >= len(df) - 10 and candle_timestamp not in self.doubledip_alerted_candles:
                                     alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {curr_rsi_val:.2f} (Prev: {prev_rsi_val:.2f})\n**Status:** CLOSE SIGNAL (RSI Cross Under 30)"
                                     logger.warning("doubledip_lookback_close", rsi=curr_rsi_val, time=candle_date)
-                                    self._send_discord_alert(alert_msg, color=0xFFD700)
+                                    self._send_alert(alert_msg, color=0xFFD700)
                                     self.doubledip_alerted_candles.add(candle_timestamp)
                         
                         # Update UI with most recent signal found (even if old)
@@ -1908,7 +1910,7 @@ Capital Required: Rs.{capital_required:,.2f}
                                 dpg.set_value("doubledip_last_signal", last_alert)
                                 dpg.configure_item("doubledip_last_signal", color=(100,255,100))
                                 
-                                self._send_discord_alert(alert_msg, color=0x00FF00)
+                                self._send_alert(alert_msg, color=0x00FF00)
                                 self._play_alert_sound()
                                 self.doubledip_alerted_candles.add(check_timestamp)
                             
@@ -1926,7 +1928,7 @@ Capital Required: Rs.{capital_required:,.2f}
                                 dpg.set_value("doubledip_last_signal", last_alert)
                                 dpg.configure_item("doubledip_last_signal", color=(255,100,100))
                                 
-                                self._send_discord_alert(alert_msg, color=0xFF0000)
+                                self._send_alert(alert_msg, color=0xFF0000)
                                 self._play_alert_sound()
                                 self.doubledip_alerted_candles.add(check_timestamp)
                             else:
@@ -1974,6 +1976,13 @@ Capital Required: Rs.{capital_required:,.2f}
     def stop_doubledip_monitor(self):
         """Stop RSI Double-Dip monitoring"""
         self.doubledip_monitor_running = False
+        
+        # Send Stop Alert
+        symbol_info = f"**Symbol:** {self.current_doubledip_symbol}\n" if self.current_doubledip_symbol else ""
+        rsi_info = f"**RSI:** {self.current_doubledip_rsi:.2f}\n" if self.current_doubledip_rsi else ""
+        stop_msg = f"**DOUBLE-DIP MONITOR STOPPED**\n\n{symbol_info}{rsi_info}**Status:** User Requested Stop\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        self._send_alert(stop_msg, color=0x808080)
+        
         dpg.configure_item("doubledip_start_btn", show=True)
         dpg.configure_item("doubledip_stop_btn", show=False)
         dpg.set_value("doubledip_status", "Monitor stopped")
@@ -2051,7 +2060,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         logger.error("instrument_token_not_found", symbol=symbol)
                         dpg.set_value("donchian_status", f"Instrument token not found for {symbol}")
                         dpg.configure_item("donchian_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFF0000)
+                        self._send_alert(error_msg, color=0xFF0000)
                         return False
                     
                     # Fetch historical data
@@ -2068,7 +2077,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         logger.warning("no_data_received_from_api")
                         dpg.set_value("donchian_status", "No data found or API error.")
                         dpg.configure_item("donchian_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFFA500)
+                        self._send_alert(error_msg, color=0xFFA500)
                         time.sleep(60)
                         return False
                     
@@ -2085,7 +2094,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         logger.warning("not_enough_candles", count=len(df), required=required)
                         dpg.set_value("donchian_status", f"Not enough historical candles (need {required}+)")
                         dpg.configure_item("donchian_status", color=(255,100,100))
-                        self._send_discord_alert(error_msg, color=0xFFA500)
+                        self._send_alert(error_msg, color=0xFFA500)
                         return False
                     
                     # Candle type selection for Donchian
@@ -2160,7 +2169,7 @@ Capital Required: Rs.{capital_required:,.2f}
                                         close=round(lookback_close, 2),
                                         upper=round(lookback_upper, 2)
                                     )
-                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self._send_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
                                     self.donchian_alerted_candles.add(candle_timestamp)
                             
                             # Check for bearish signal
@@ -2173,7 +2182,7 @@ Capital Required: Rs.{capital_required:,.2f}
                                         close=round(lookback_close, 2),
                                         lower=round(lookback_lower, 2)
                                     )
-                                    self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
+                                    self._send_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
                                     self.donchian_alerted_candles.add(candle_timestamp)
                         
                         first_run = False
@@ -2239,7 +2248,7 @@ Capital Required: Rs.{capital_required:,.2f}
                             )
                             dpg.set_value("donchian_last_alert", last_alert)
                             dpg.configure_item("donchian_last_alert", color=(100,255,100))
-                            self._send_discord_alert(alert_msg, color=0x00FF00)
+                            self._send_alert(alert_msg, color=0x00FF00)
                             self._play_alert_sound()
                             self.donchian_alerted_candles.add(check_candle_timestamp)
                         elif check_close <= check_lower and check_candle_timestamp not in self.donchian_alerted_candles:
@@ -2255,7 +2264,7 @@ Capital Required: Rs.{capital_required:,.2f}
                             )
                             dpg.set_value("donchian_last_alert", last_alert)
                             dpg.configure_item("donchian_last_alert", color=(255,100,100))
-                            self._send_discord_alert(alert_msg, color=0xFF0000)
+                            self._send_alert(alert_msg, color=0xFF0000)
                             self._play_alert_sound()
                             self.donchian_alerted_candles.add(check_candle_timestamp)
                         else:
@@ -2287,12 +2296,12 @@ Capital Required: Rs.{capital_required:,.2f}
                 logger.error("donchian_monitor_exception", error=str(e), exc_info=True)
                 dpg.set_value("donchian_status", f"Error: {str(e)}")
                 dpg.configure_item("donchian_status", color=(255,100,100))
-                self._send_discord_alert(error_msg, color=0xFF0000)
+                self._send_alert(error_msg, color=0xFF0000)
             finally:
                 price_info = f"**Price:** {self.current_donchian_price:.2f}\n" if self.current_donchian_price else ""
                 stop_msg = f"**Symbol:** {symbol}\n{price_info}**Status:** Monitor Stopped (Thread Exit)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 logger.info("donchian_monitor_stopped", symbol=symbol)
-                self._send_discord_alert(stop_msg, color=0x808080)
+                self._send_alert(stop_msg, color=0x808080)
                 self.donchian_monitor_running = False
                 dpg.configure_item("donchian_start_btn", show=True)
                 dpg.configure_item("donchian_stop_btn", show=False)
@@ -2308,7 +2317,7 @@ Capital Required: Rs.{capital_required:,.2f}
         symbol_info = f"**Symbol:** {self.current_donchian_symbol}\n" if self.current_donchian_symbol else ""
         price_info = f"**Price:** {self.current_donchian_price:.2f}\n" if self.current_donchian_price else ""
         stop_msg = f"{symbol_info}{price_info}**Status:** Monitor Stopped (User Request)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        self._send_discord_alert(stop_msg, color=0x808080)  # Gray
+        self._send_alert(stop_msg, color=0x808080)  # Gray
         
         dpg.set_value("donchian_status", "Monitor stopped")
         dpg.configure_item("donchian_status", color=(255,150,0))
@@ -2317,7 +2326,7 @@ Capital Required: Rs.{capital_required:,.2f}
         # Reset tab color
         dpg.bind_item_theme("tab_goldpetal", 0)  # 0 unbinds the theme
     
-    def _send_discord_alert(self, message, color=0xFF5733, title="Trading Alert"):
+    def _send_alert(self, message, color=0xFF5733, title="Trading Alert"):
         """Send alert via notification system (email + Discord)"""
         self.notifier.send_alert(
             message=message,
