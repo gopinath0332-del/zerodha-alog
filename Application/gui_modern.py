@@ -1958,6 +1958,23 @@ Capital Required: Rs.{capital_required:,.2f}
 
 def main():
     """Main entry point"""
+    # Initialize logging with human-readable file output
+    from Core_Modules.logger import setup_logging, setup_human_readable_logging
+    
+    # Setup basic logging (console + JSON file if needed)
+    setup_logging(log_level="INFO")
+    
+    # Add human-readable file logging
+    setup_human_readable_logging(
+        log_file="logs/gui_modern.log",
+        log_level="INFO",
+        max_bytes=10*1024*1024,  # 10MB
+        backup_count=5
+    )
+    
+    # Log application startup
+    logger.info("gui_application_starting", version="1.0.0")
+    
     app = ModernTradingGUI()
     app.run()
 

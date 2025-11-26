@@ -146,6 +146,112 @@ def setup_logging(log_level="INFO", log_file=None):
     return structlog.get_logger()
 
 
+def setup_human_readable_logging(log_file, log_level="INFO", max_bytes=10*1024*1024, backup_count=5):
+    """
+    Add a human-readable file handler to the existing logging configuration.
+    This complements the existing JSON file logging with an easy-to-read format.
+    
+    Args:
+        log_file: Path to the human-readable log file
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        max_bytes: Maximum size of log file before rotation (default: 10MB)
+        backup_count: Number of backup files to keep (default: 5)
+    
+    Example output format:
+        2025-11-26 16:12:44 [INFO] application_started | module=gui_modern | version=1.0.0
+    """
+    import logging
+    from logging.handlers import RotatingFileHandler
+    
+    # Determine log level
+    level_map = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
+    }
+    log_level_int = level_map.get(log_level.upper(), logging.INFO)
+    
+    # Create log directory if it doesn't exist
+    log_path = Path(log_file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Custom processor for human-readable output
+    def human_readable_processor(logger, method_name, event_dict):
+        """Convert structlog event dict to human-readable string"""
+        from datetime import datetime
+        
+        # Extract key components
+        timestamp_raw = event_dict.get('timestamp', '')
+        
+        # Convert ISO timestamp to simple format if needed
+        if timestamp_raw:
+            try:
+                # Parse ISO format timestamp
+                if 'T' in timestamp_raw:
+                    dt = datetime.fromisoformat(timestamp_raw.replace('Z', '+00:00'))
+                    timestamp = dt.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    timestamp = timestamp_raw
+            except Exception:
+                timestamp = timestamp_raw
+        else:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        level = event_dict.get('level', '').upper()
+        event = event_dict.get('event', 'log_message')
+        
+        # Build the base message
+        parts = [f"{timestamp} [{level}] {event}"]
+        
+        # Add other key-value pairs (excluding special keys)
+        exclude_keys = {'timestamp', 'level', 'event', 'logger', 'filename', 'lineno', 'func_name'}
+        kvs = []
+        for key, value in event_dict.items():
+            if key not in exclude_keys:
+                # Format the value appropriately
+                if isinstance(value, (list, dict)):
+                    value_str = str(value)
+                elif value is None:
+                    value_str = 'None'
+                else:
+                    value_str = str(value)
+                kvs.append(f"{key}={value_str}")
+        
+        if kvs:
+            parts.append(" | ".join(kvs))
+        
+        # Return the formatted string
+        return " | ".join(parts)
+    
+    # Create rotating file handler
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding='utf-8'
+    )
+    file_handler.setLevel(log_level_int)
+    
+    # Use custom processor with structlog
+    file_formatter = structlog.stdlib.ProcessorFormatter(
+        processor=human_readable_processor,
+        foreign_pre_chain=[
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S", utc=False),
+            structlog.stdlib.add_logger_name,
+        ],
+    )
+    file_handler.setFormatter(file_formatter)
+    
+    # Add handler to root logger
+    root_logger = logging.getLogger()
+    root_logger.addHandler(file_handler)
+    
+    return structlog.get_logger()
+
+
 def get_logger(name=None):
     """
     Get a configured logger instance.
