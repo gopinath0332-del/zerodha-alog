@@ -1735,7 +1735,8 @@ Capital Required: Rs.{capital_required:,.2f}
                     
                     # Lookback on first run
                     if first_run:
-                        lookback_count = min(50, len(df) - rsi_period)  # Check last 50 candles for any signal
+                        # Check entire history (30 days) for the last signal to populate UI
+                        lookback_count = len(df) - rsi_period
                         logger.info("doubledip_lookback_start", lookback_count=lookback_count)
                         
                         most_recent_signal = None
