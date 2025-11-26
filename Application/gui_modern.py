@@ -1361,31 +1361,31 @@ Capital Required: Rs.{capital_required:,.2f}
                         close = ha_df['ha_close']
                     else:
                         close = df['close']
-                    delta = close.diff()
-                    gain = delta.where(delta > 0, 0)
-                    loss = -delta.where(delta < 0, 0)
-                    avg_gain = gain.rolling(window=period, min_periods=period).mean()
-                    avg_loss = loss.rolling(window=period, min_periods=period).mean()
-                    for i in range(period, len(gain)):
-                        avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period - 1) + gain.iloc[i]) / period
-                        avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period - 1) + loss.iloc[i]) / period
-                    rs = avg_gain / avg_loss
-                    rsi = 100 - (100 / (1 + rs))
-                    current_rsi = float(rsi.iloc[-1])
-                    self.current_rsi_value = current_rsi
+                    from Core_Modules.utils import calculate_rsi
+                    rsi = calculate_rsi(close.values, period)
+                    # Use the last completed candle for display and alerts
+                    if len(rsi) > 1:
+                        completed_rsi = float(rsi[-2])
+                        completed_candle_time = df.iloc[-2]['date'].strftime('%Y-%m-%d %H:%M')
+                        completed_close = round(close.iloc[-2], 2)
+                    else:
+                        completed_rsi = float('nan')
+                        completed_candle_time = '--'
+                        completed_close = float('nan')
+                    self.current_rsi_value = completed_rsi
                     self.current_rsi_symbol = symbol
                     current_time = datetime.now().strftime('%H:%M:%S')
                     logger.info(
                         "rsi_update",
-                        rsi=round(current_rsi, 2),
-                        last_candle=df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M'),
-                        close=round(close.iloc[-1], 2)
+                        rsi=round(completed_rsi, 2),
+                        last_candle=completed_candle_time,
+                        close=completed_close
                     )
-                    dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
+                    dpg.set_value("rsi_current_value", f"Last Completed RSI: {completed_rsi:.2f} (Candle: {completed_candle_time})")
                     nonlocal first_run, last_alert
                     
                     if first_run:
-                        start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**RSI:** {current_rsi:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**RSI:** {completed_rsi:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S') }"
                         self._send_discord_alert(start_msg, color=0x3498DB)
                         
                         # LOOKBACK FEATURE: Check last 10 candles for missed RSI signals on startup
@@ -1436,45 +1436,43 @@ Capital Required: Rs.{capital_required:,.2f}
                         first_run = False
                     
                     # Get current candle timestamp for deduplication
-                    current_candle_timestamp = df['date'].iloc[-1].isoformat()
-                    
+                    completed_candle_timestamp = df['date'].iloc[-2].isoformat() if len(df) > 1 else None
                     # Check for RSI alerts with deduplication
                     logger.debug(
-                        "rsi_current_check",
-                        current_rsi=round(current_rsi, 2),
+                        "rsi_completed_check",
+                        completed_rsi=round(completed_rsi, 2),
                         overbought_threshold=70,
                         oversold_threshold=30,
-                        already_alerted=current_candle_timestamp in self.rsi_alerted_candles
+                        already_alerted=completed_candle_timestamp in self.rsi_alerted_candles
                     )
-                    
-                    if current_rsi > 70 and current_candle_timestamp not in self.rsi_alerted_candles:
-                        last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S')}"
-                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    if completed_rsi > 70 and completed_candle_timestamp and completed_candle_timestamp not in self.rsi_alerted_candles:
+                        last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S') }"
+                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {completed_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S') }"
                         logger.warning(
                             "rsi_alert_overbought",
                             symbol=symbol,
-                            rsi=round(current_rsi, 2),
+                            rsi=round(completed_rsi, 2),
                             threshold=70
                         )
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(255,100,100))
                         self._send_discord_alert(alert_msg, color=0xFF5733)
                         self._play_alert_sound()
-                        self.rsi_alerted_candles.add(current_candle_timestamp)
-                    elif current_rsi < 30 and current_candle_timestamp not in self.rsi_alerted_candles:
-                        last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S')}"
-                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {current_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        self.rsi_alerted_candles.add(completed_candle_timestamp)
+                    elif completed_rsi < 30 and completed_candle_timestamp and completed_candle_timestamp not in self.rsi_alerted_candles:
+                        last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S') }"
+                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {completed_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S') }"
                         logger.warning(
                             "rsi_alert_oversold",
                             symbol=symbol,
-                            rsi=round(current_rsi, 2),
+                            rsi=round(completed_rsi, 2),
                             threshold=30
                         )
                         dpg.set_value("rsi_last_alert", last_alert)
                         dpg.configure_item("rsi_last_alert", color=(100,255,100))
                         self._send_discord_alert(alert_msg, color=0x33FF57)
                         self._play_alert_sound()
-                        self.rsi_alerted_candles.add(current_candle_timestamp)
+                        self.rsi_alerted_candles.add(completed_candle_timestamp)
                     else:
                         dpg.set_value("rsi_last_alert", last_alert)
                     dpg.set_value("rsi_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
