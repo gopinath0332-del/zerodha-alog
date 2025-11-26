@@ -1424,17 +1424,38 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Calculate RSI using common strategy function
                     from Core_Modules.strategies import TradingStrategies
                     rsi = TradingStrategies.calculate_rsi(close, period=period)
+                    # ALERT LOGIC: Use LIVE candle (original behavior)
                     current_rsi = float(rsi.iloc[-1])
                     self.current_rsi_value = current_rsi
                     self.current_rsi_symbol = symbol
+                    
+                    # DISPLAY LOGIC: Use COMPLETED candle (to match Zerodha/Double-Dip)
+                    now = datetime.now(ist)
+                    last_candle_time = df['date'].iloc[-1]
+                    time_diff = (now - last_candle_time).total_seconds() / 3600
+                    
+                    if time_diff >= 1.0:
+                        display_rsi_idx = -1
+                        candle_status_display = "complete"
+                    else:
+                        display_rsi_idx = -2
+                        candle_status_display = "incomplete (showing previous)"
+                    
+                    display_rsi = float(rsi.iloc[display_rsi_idx])
+                    
                     current_time = datetime.now().strftime('%H:%M:%S')
                     logger.info(
                         "rsi_update",
-                        rsi=round(current_rsi, 2),
-                        last_candle=df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M'),
+                        live_rsi=round(current_rsi, 2),
+                        display_rsi=round(display_rsi, 2),
+                        last_candle=df['date'].iloc[-1].strftime('%Y-%m-%d %H:%M'),
+                        candle_status=candle_status_display,
                         close=round(close.iloc[-1], 2)
                     )
-                    dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
+                    
+                    # Show RSI with candle time for clarity (using completed candle)
+                    candle_time_str = df['date'].iloc[display_rsi_idx].strftime('%d %b %H:%M')
+                    dpg.set_value("rsi_current_value", f"RSI ({candle_time_str}): {display_rsi:.2f}")
                     nonlocal first_run, last_alert
                     
                     if first_run:
