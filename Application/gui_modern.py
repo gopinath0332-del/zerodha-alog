@@ -1293,13 +1293,11 @@ Capital Required: Rs.{capital_required:,.2f}
                 interval=interval
             )
             try:
-                import importlib
-                import Core_Modules.config as config_module
-                importlib.reload(config_module)
-                api_key = config_module.Config.API_KEY
-                access_token = config_module.Config.ACCESS_TOKEN
-                kite = KiteConnect(api_key=api_key)
-                kite.set_access_token(access_token)
+                # Use the existing authenticated kite instance from the main thread
+                if not hasattr(self, 'trader') or not self.trader or not self.trader.kite:
+                    raise Exception("Trader instance not initialized or not authenticated")
+                
+                kite = self.trader.kite
                 period = 14
                 last_alert = "--"
                 first_run = True
@@ -1583,13 +1581,11 @@ Capital Required: Rs.{capital_required:,.2f}
             )
             
             try:
-                import importlib
-                import Core_Modules.config as config_module
-                importlib.reload(config_module)
-                api_key = config_module.Config.API_KEY
-                access_token = config_module.Config.ACCESS_TOKEN
-                kite = KiteConnect(api_key=api_key)
-                kite.set_access_token(access_token)
+                # Use the existing authenticated kite instance from the main thread
+                if not hasattr(self, 'trader') or not self.trader or not self.trader.kite:
+                    raise Exception("Trader instance not initialized or not authenticated")
+                
+                kite = self.trader.kite
                 
                 last_alert = "--"
                 first_run = True
