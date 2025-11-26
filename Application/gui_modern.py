@@ -1559,8 +1559,23 @@ Capital Required: Rs.{capital_required:,.2f}
                     next_10min = next_10min_boundary(now)
                     
                     # Determine which comes first: hourly boundary or 10-min boundary
-                    if next_10min < next_hourly:
-                        # Next event is a 10-minute update
+                    if next_10min == next_hourly:
+                        # Both events coincide at top of hour - do full analysis
+                        wait_seconds = (next_hourly - now).total_seconds()
+                        dpg.set_value("rsi_status", f"Monitoring... Next hourly check: {next_hourly.strftime('%H:%M')}")
+                        dpg.configure_item("rsi_status", color=(200,200,100))
+                        
+                        if wait_seconds > 0:
+                            time.sleep(wait_seconds)
+                        
+                        if not self.rsi_monitor_running:
+                            break
+                        
+                        logger.info("rsi_hourly_update_trigger", update_time=next_hourly.strftime('%H:%M'))
+                        do_rsi_analysis()  # Update completed RSI and check alerts
+                        update_current_rsi()  # Update current RSI
+                    elif next_10min < next_hourly:
+                        # Next event is a 10-minute update (not hourly)
                         wait_seconds = (next_10min - now).total_seconds()
                         dpg.set_value("rsi_status", f"Monitoring... Next update: {next_10min.strftime('%H:%M')}, Hourly check: {next_hourly.strftime('%H:%M')}")
                         dpg.configure_item("rsi_status", color=(200,200,100))
@@ -1572,21 +1587,11 @@ Capital Required: Rs.{capital_required:,.2f}
                             break
                         
                         logger.info("rsi_10min_update_trigger", update_time=next_10min.strftime('%H:%M'))
-                        update_current_rsi()
+                        update_current_rsi()  # Only update current RSI
                     else:
-                        # Next event is hourly boundary
-                        wait_seconds = (next_hourly - now).total_seconds()
-                        dpg.set_value("rsi_status", f"Monitoring... Next hourly check: {next_hourly.strftime('%H:%M')}")
-                        dpg.configure_item("rsi_status", color=(200,200,100))
-                        
-                        if wait_seconds > 0:
-                            time.sleep(wait_seconds)
-                        
-                        if not self.rsi_monitor_running:
-                            break
-                        
-                        do_rsi_analysis()
-                        update_current_rsi()  # Update current RSI after hourly analysis
+                        # This shouldn't happen with proper boundary calculation
+                        logger.warning("rsi_unexpected_boundary_state", next_10min=next_10min.strftime('%H:%M'), next_hourly=next_hourly.strftime('%H:%M'))
+                        time.sleep(60)  # Wait a minute and recalculate
             except Exception as e:
                 error_msg = f"**Symbol:** {symbol}\n**Error:** {str(e)}\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 logger.error("rsi_monitor_exception", error=str(e), exc_info=True)
