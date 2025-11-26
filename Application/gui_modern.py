@@ -364,9 +364,9 @@ class ModernTradingGUI:
                         dpg.add_spacer(height=10)
                         dpg.add_text("Status: Idle", tag="rsi_status", color=(150,150,150))
                         dpg.add_separator()
-                        dpg.add_text("Alerts: RSI > 70 (Overbought), RSI < 30 (Oversold)", color=(255,255,255))
+                        dpg.add_text("Strategy: LONG when RSI > 70 (Overbought), EXIT when RSI < 30 (Oversold)", color=(255,255,255))
                         dpg.add_spacer(height=10)
-                        dpg.add_text("Note: RSI matches Zerodha chart (period=14, close)", color=(150,255,150))
+                        dpg.add_text("Note: Counter-trend strategy - RSI period=14, close price", color=(150,255,150))
                 
                 # GOLDPETAL Donchian Channel Tab
                 with dpg.tab(label="GOLDPETAL", tag="tab_goldpetal"):
@@ -1415,18 +1415,18 @@ Capital Required: Rs.{capital_required:,.2f}
                                 lookback_rsi = float(rsi_lb[-1])
                                 
                                 if lookback_rsi > 70:
-                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** LONG ENTRY (RSI > 70)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                                     logger.warning(
-                                        "rsi_lookback_overbought",
+                                        "rsi_lookback_long_entry",
                                         candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
                                         rsi=round(lookback_rsi, 2)
                                     )
                                     self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
                                     self.rsi_alerted_candles.add(candle_timestamp)
                                 elif lookback_rsi < 30:
-                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** EXIT (RSI < 30)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                                     logger.warning(
-                                        "rsi_lookback_oversold",
+                                        "rsi_lookback_exit",
                                         candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
                                         rsi=round(lookback_rsi, 2)
                                     )
@@ -1446,31 +1446,31 @@ Capital Required: Rs.{capital_required:,.2f}
                         already_alerted=completed_candle_timestamp in self.rsi_alerted_candles
                     )
                     if completed_rsi > 70 and completed_candle_timestamp and completed_candle_timestamp not in self.rsi_alerted_candles:
-                        last_alert = f"RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S') }"
-                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {completed_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S') }"
+                        last_alert = f"LONG ENTRY: RSI crossed above 70 at {datetime.now().strftime('%H:%M:%S') }"
+                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {completed_rsi:.2f}\n**Action:** ENTER LONG (RSI > 70)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S') }"
                         logger.warning(
-                            "rsi_alert_overbought",
+                            "rsi_alert_long_entry",
                             symbol=symbol,
                             rsi=round(completed_rsi, 2),
                             threshold=70
                         )
                         dpg.set_value("rsi_last_alert", last_alert)
-                        dpg.configure_item("rsi_last_alert", color=(255,100,100))
-                        self._send_discord_alert(alert_msg, color=0xFF5733)
+                        dpg.configure_item("rsi_last_alert", color=(100,255,100))
+                        self._send_discord_alert(alert_msg, color=0x00FF00)
                         self._play_alert_sound()
                         self.rsi_alerted_candles.add(completed_candle_timestamp)
                     elif completed_rsi < 30 and completed_candle_timestamp and completed_candle_timestamp not in self.rsi_alerted_candles:
-                        last_alert = f"RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S') }"
-                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {completed_rsi:.2f}\n**Status:** OVERSOLD (< 30)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S') }"
+                        last_alert = f"EXIT: RSI crossed below 30 at {datetime.now().strftime('%H:%M:%S') }"
+                        alert_msg = f"**Symbol:** {symbol}\n**RSI:** {completed_rsi:.2f}\n**Action:** EXIT LONG (RSI < 30)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S') }"
                         logger.warning(
-                            "rsi_alert_oversold",
+                            "rsi_alert_exit",
                             symbol=symbol,
                             rsi=round(completed_rsi, 2),
                             threshold=30
                         )
                         dpg.set_value("rsi_last_alert", last_alert)
-                        dpg.configure_item("rsi_last_alert", color=(100,255,100))
-                        self._send_discord_alert(alert_msg, color=0x33FF57)
+                        dpg.configure_item("rsi_last_alert", color=(255,100,100))
+                        self._send_discord_alert(alert_msg, color=0xFF0000)
                         self._play_alert_sound()
                         self.rsi_alerted_candles.add(completed_candle_timestamp)
                     else:
