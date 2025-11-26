@@ -101,6 +101,12 @@ class ModernTradingGUI:
             'values': []
         }
         
+        # Double-Dip Strategy State
+        self.doubledip_monitor_running = False
+        self.doubledip_alerted_candles = set()
+        self.current_doubledip_rsi = None
+        self.current_doubledip_symbol = None
+        
         # Initialize DearPyGui
         dpg.create_context()
         
@@ -117,6 +123,8 @@ class ModernTradingGUI:
         threading.Timer(0.3, self.load_natgasmini_futures).start()
         # Load GOLDPETAL futures for Donchian tab
         threading.Timer(0.3, self.load_goldpetal_futures).start()
+        # Load GOLDPETAL futures for Double-Dip tab
+        threading.Timer(0.4, self.load_doubledip_futures).start()
     
     def setup_theme(self):
         """Setup custom theme for professional trading terminal look"""
@@ -393,6 +401,59 @@ class ModernTradingGUI:
                         dpg.add_text("Alerts: Price breaks above Upper Band (Bullish) or below Lower Band (Bearish)", color=(255,255,255))
                         dpg.add_spacer(height=10)
                         dpg.add_text("Note: Donchian Channels identify trend reversals and breakouts", color=(150,255,150))
+                
+                # Double-Dip Tab - RSI Double-Dip Strategy for GOLDPETAL
+                with dpg.tab(label="Double-Dip", tag="tab_doubledip"):
+                    with dpg.child_window(height=-1):
+                        dpg.add_text("RSI Double-Dip Strategy (GOLDPETAL)", tag="doubledip_title")
+                        dpg.add_separator()
+                        
+                        # Strategy explanation
+                        with dpg.group():
+                            dpg.add_text("Strategy: Long when RSI crosses above 30, Close when RSI crosses below 30", color=(200,200,255))
+                            dpg.add_text("Instrument: GOLDPETAL Futures | Interval: 1 Hour | RSI Period: 14", color=(150,150,150))
+                        
+                        dpg.add_separator()
+                        
+                        # Futures selection
+                        with dpg.group(horizontal=True):
+                            dpg.add_combo(label="Future", tag="doubledip_symbol", items=[], width=350)
+                        
+                        # Candle type selection
+                        with dpg.group(horizontal=True):
+                            dpg.add_text("Candle Type:")
+                            dpg.add_radio_button(
+                                ["Heikin Ashi", "Normal"],
+                                tag="doubledip_candle_type",
+                                default_value="Heikin Ashi",
+                                horizontal=True
+                            )
+                        
+                        dpg.add_separator()
+                        
+                        # Control buttons
+                        with dpg.group(horizontal=True):
+                            dpg.add_button(label="Launch Monitor", tag="doubledip_start_btn", callback=self.launch_doubledip_monitor)
+                            dpg.add_button(label="Stop Monitor", tag="doubledip_stop_btn", callback=self.stop_doubledip_monitor, show=False)
+                        
+                        dpg.add_separator()
+                        
+                        # Status display
+                        dpg.add_text("Status: Not running", tag="doubledip_status", color=(150,150,150))
+                        dpg.add_text("Current RSI: --", tag="doubledip_current_rsi", color=(255,255,255))
+                        dpg.add_text("Last Signal: --", tag="doubledip_last_signal", color=(150,150,150))
+                        
+                        dpg.add_separator()
+                        
+                        # Strategy info
+                        with dpg.collapsing_header(label="Strategy Details", default_open=False):
+                            dpg.add_text("Entry Condition:", color=(100,255,100))
+                            dpg.add_text("  • RSI crosses above 30 (oversold recovery)")
+                            dpg.add_spacer(height=5)
+                            dpg.add_text("Exit Condition:", color=(255,100,100))
+                            dpg.add_text("  • RSI crosses below 30 (back to oversold)")
+                            dpg.add_spacer(height=10)
+                            dpg.add_text("Note: This is a long-only strategy for GOLDPETAL futures", color=(150,255,150))
         
         # Don't call show_welcome here - it will be called after viewport is shown
     
@@ -1358,16 +1419,9 @@ Capital Required: Rs.{capital_required:,.2f}
                         close = ha_df['ha_close']
                     else:
                         close = df['close']
-                    delta = close.diff()
-                    gain = delta.where(delta > 0, 0)
-                    loss = -delta.where(delta < 0, 0)
-                    avg_gain = gain.rolling(window=period, min_periods=period).mean()
-                    avg_loss = loss.rolling(window=period, min_periods=period).mean()
-                    for i in range(period, len(gain)):
-                        avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period - 1) + gain.iloc[i]) / period
-                        avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period - 1) + loss.iloc[i]) / period
-                    rs = avg_gain / avg_loss
-                    rsi = 100 - (100 / (1 + rs))
+                    # Calculate RSI using common strategy function
+                    from Core_Modules.strategies import TradingStrategies
+                    rsi = TradingStrategies.calculate_rsi(close, period=period)
                     current_rsi = float(rsi.iloc[-1])
                     self.current_rsi_value = current_rsi
                     self.current_rsi_symbol = symbol
@@ -1538,6 +1592,300 @@ Capital Required: Rs.{capital_required:,.2f}
         dpg.configure_item("rsi_stop_btn", show=False)
         # Reset tab color
         dpg.bind_item_theme("tab_natgasmini", 0)  # 0 unbinds the theme
+    
+    def load_doubledip_futures(self):
+        """Load GOLDPETAL futures for Double-Dip tab"""
+        def load():
+            try:
+                if not self.trader or not self.trader.kite:
+                    return
+                
+                kite = self.trader.kite
+                instruments = kite.instruments(exchange="MCX")
+                
+                # Filter GOLDPETAL futures
+                goldpetal_futures = [
+                    inst['tradingsymbol'] 
+                    for inst in instruments 
+                    if 'GOLDPETAL' in inst['tradingsymbol'] 
+                    and inst['instrument_type'] == 'FUT'
+                ]
+                
+                goldpetal_futures.sort()
+                
+                if goldpetal_futures and dpg.does_item_exist("doubledip_symbol"):
+                    dpg.configure_item("doubledip_symbol", items=goldpetal_futures)
+                    if goldpetal_futures:
+                        dpg.set_value("doubledip_symbol", goldpetal_futures[0])
+                    logger.info("doubledip_futures_loaded", count=len(goldpetal_futures))
+            except Exception as e:
+                logger.error("doubledip_futures_load_failed", error=str(e))
+        
+        threading.Thread(target=load, daemon=True).start()
+
+    def launch_doubledip_monitor(self):
+        """Start RSI Double-Dip monitoring"""
+        symbol_input = dpg.get_value("doubledip_symbol").strip().upper()
+        rsi_period = 14
+        interval = "hour"
+        
+        if self.doubledip_monitor_running:
+            dpg.set_value("doubledip_status", "Monitor already running. Stop it first.")
+            dpg.configure_item("doubledip_status", color=(255,200,0))
+            return
+        
+        self.doubledip_monitor_running = True
+        self.doubledip_alerted_candles = set()
+        dpg.configure_item("doubledip_start_btn", show=False)
+        dpg.configure_item("doubledip_stop_btn", show=True)
+        
+        dpg.set_value("doubledip_status", f"Launching Double-Dip monitor for {symbol_input}...")
+        
+        # Set tab color to indicate running
+        dpg.bind_item_theme("tab_doubledip", "active_monitor_theme")
+        
+        def doubledip_worker():
+            import time
+            from kiteconnect import KiteConnect
+            from Core_Modules.config import Config
+            import pandas as pd
+            from datetime import datetime, timedelta
+            import pytz
+            from Core_Modules.strategies import TradingStrategies
+            
+            symbol = symbol_input
+            
+            logger.info(
+                "doubledip_monitor_started",
+                symbol=symbol,
+                interval=interval,
+                rsi_period=rsi_period
+            )
+            
+            try:
+                # Use the existing authenticated kite instance
+                if not hasattr(self, 'trader') or not self.trader or not self.trader.kite:
+                    raise Exception("Trader instance not initialized or not authenticated")
+                
+                kite = self.trader.kite
+                
+                last_alert = "--"
+                first_run = True
+                ist = pytz.timezone('Asia/Kolkata')
+                
+                def next_market_hour_boundary(now):
+                    if now.minute == 0:
+                        next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                    else:
+                        next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                    return next_boundary
+                
+                def do_doubledip_analysis():
+                    nonlocal first_run, last_alert
+                    
+                    # Resolve instrument token
+                    instrument_token = self._resolve_instrument_token(symbol)
+                    if not instrument_token:
+                        error_msg = f"**Symbol:** {symbol}\n**Error:** Instrument token not found"
+                        logger.error("instrument_token_not_found", symbol=symbol)
+                        dpg.set_value("doubledip_status", f"Instrument token not found for {symbol}")
+                        dpg.configure_item("doubledip_status", color=(255,100,100))
+                        return False
+                    
+                    # Fetch historical data
+                    data = kite.historical_data(
+                        instrument_token=instrument_token,
+                        from_date=(datetime.now()-pd.Timedelta(days=30)).strftime('%Y-%m-%d'),
+                        to_date=datetime.now().strftime('%Y-%m-%d'),
+                        interval="hour"
+                    )
+                    df = pd.DataFrame(data)
+                    
+                    if df.empty or 'close' not in df:
+                        logger.warning("no_data_received_from_api")
+                        dpg.set_value("doubledip_status", "No data found or API error.")
+                        dpg.configure_item("doubledip_status", color=(255,100,100))
+                        time.sleep(60)
+                        return False
+                    
+                    # Convert dates to IST
+                    df['date'] = pd.to_datetime(df['date'])
+                    if df['date'].dt.tz is None:
+                        df['date'] = df['date'].dt.tz_localize('UTC').dt.tz_convert(ist)
+                    else:
+                        df['date'] = df['date'].dt.tz_convert(ist)
+                    
+                    # Get candle type
+                    candle_type = dpg.get_value("doubledip_candle_type") if dpg.does_item_exist("doubledip_candle_type") else "Normal"
+                    if candle_type == "Heikin Ashi":
+                        ha_df = TradingStrategies.heikin_ashi(df)
+                        close = ha_df['ha_close']
+                    else:
+                        close = df['close']
+                    
+                    # Calculate RSI
+                    # Calculate RSI using common strategy function
+                    rsi = TradingStrategies.calculate_rsi(close, period=rsi_period)
+                    
+                    current_rsi = rsi.iloc[-1]
+                    self.current_doubledip_rsi = current_rsi
+                    self.current_doubledip_symbol = symbol
+                    
+                    dpg.set_value("doubledip_current_rsi", f"Current RSI: {current_rsi:.2f}")
+                    
+                    # Lookback on first run
+                    if first_run:
+                        lookback_count = min(50, len(df) - rsi_period)  # Check last 50 candles for any signal
+                        logger.info("doubledip_lookback_start", lookback_count=lookback_count)
+                        
+                        most_recent_signal = None
+                        
+                        for i in range(lookback_count, 0, -1):
+                            idx = -1 - i
+                            candle_date = df['date'].iloc[idx]
+                            candle_timestamp = candle_date.isoformat()
+                            
+                            curr_rsi_val = rsi.iloc[idx]
+                            prev_rsi_val = rsi.iloc[idx-1] if idx > 0 else None
+                            
+                            if prev_rsi_val is not None:
+                                # Check for LONG signal (cross over 30)
+                                if prev_rsi_val <= 30 and curr_rsi_val > 30:
+                                    # Track as most recent signal
+                                    most_recent_signal = {
+                                        "type": "LONG",
+                                        "time": candle_date,
+                                        "rsi": curr_rsi_val
+                                    }
+                                    
+                                    # Alert if missed (only check last 10 candles for alerts to avoid spam)
+                                    if i <= 10 and candle_timestamp not in self.doubledip_alerted_candles:
+                                        alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {curr_rsi_val:.2f} (Prev: {prev_rsi_val:.2f})\n**Status:** LONG SIGNAL (RSI Cross Over 30)"
+                                        logger.warning("doubledip_lookback_long", rsi=curr_rsi_val, time=candle_date)
+                                        self._send_discord_alert(alert_msg, color=0xFFD700)
+                                        self.doubledip_alerted_candles.add(candle_timestamp)
+                                
+                                # Check for CLOSE signal (cross under 30)
+                                elif prev_rsi_val >= 30 and curr_rsi_val < 30:
+                                    # Track as most recent signal
+                                    most_recent_signal = {
+                                        "type": "CLOSE",
+                                        "time": candle_date,
+                                        "rsi": curr_rsi_val
+                                    }
+                                    
+                                    # Alert if missed (only check last 10 candles for alerts to avoid spam)
+                                    if i <= 10 and candle_timestamp not in self.doubledip_alerted_candles:
+                                        alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {curr_rsi_val:.2f} (Prev: {prev_rsi_val:.2f})\n**Status:** CLOSE SIGNAL (RSI Cross Under 30)"
+                                        logger.warning("doubledip_lookback_close", rsi=curr_rsi_val, time=candle_date)
+                                        self._send_discord_alert(alert_msg, color=0xFFD700)
+                                        self.doubledip_alerted_candles.add(candle_timestamp)
+                        
+                        # Update UI with most recent signal found (even if old)
+                        if most_recent_signal:
+                            sig_type = most_recent_signal["type"]
+                            sig_time = most_recent_signal["time"]
+                            sig_rsi = most_recent_signal["rsi"]
+                            
+                            last_signal = f"{sig_type} at {sig_time.strftime('%d %b %H:%M')} | RSI: {sig_rsi:.2f}"
+                            dpg.set_value("doubledip_last_signal", last_signal)
+                            
+                            color = (100,255,100) if sig_type == "LONG" else (255,100,100)
+                            dpg.configure_item("doubledip_last_signal", color=color)
+                        
+                        first_run = False
+                    
+                    # Live Monitoring Logic
+                    # Check the most recent completed candle
+                    now = datetime.now(ist)
+                    last_candle_time = df['date'].iloc[-1]
+                    time_diff = (now - last_candle_time).total_seconds() / 3600
+                    
+                    if time_diff >= 1.0:
+                        # Last candle is complete
+                        check_idx = -1
+                    else:
+                        # Last candle is incomplete, check previous
+                        check_idx = -2
+                    
+                    if len(df) > abs(check_idx):
+                        check_timestamp = df['date'].iloc[check_idx].isoformat()
+                        check_rsi = rsi.iloc[check_idx]
+                        prev_check_rsi = rsi.iloc[check_idx-1]
+                        
+                        if check_timestamp not in self.doubledip_alerted_candles:
+                            # LONG Signal: Cross Over 30
+                            if prev_check_rsi <= 30 and check_rsi > 30:
+                                candle_time_str = df['date'].iloc[check_idx].strftime('%Y-%m-%d %H:%M')
+                                alert_msg = f"**RSI DOUBLE-DIP LONG SIGNAL**\n\n**Symbol:** {symbol}\n**Time:** {candle_time_str}\n**RSI:** {check_rsi:.2f} (Prev: {prev_check_rsi:.2f})\n**Status:** LONG (Oversold Recovery)"
+                                logger.warning("doubledip_alert_long", symbol=symbol, rsi=check_rsi)
+                                
+                                last_alert = f"LONG at {datetime.now().strftime('%H:%M:%S')} | RSI: {check_rsi:.2f}"
+                                dpg.set_value("doubledip_last_signal", last_alert)
+                                dpg.configure_item("doubledip_last_signal", color=(100,255,100))
+                                
+                                self._send_discord_alert(alert_msg, color=0x00FF00)
+                                self._play_alert_sound()
+                                self.doubledip_alerted_candles.add(check_timestamp)
+                            
+                            # CLOSE Signal: Cross Under 30
+                            elif prev_check_rsi >= 30 and check_rsi < 30:
+                                candle_time_str = df['date'].iloc[check_idx].strftime('%Y-%m-%d %H:%M')
+                                alert_msg = f"**RSI DOUBLE-DIP CLOSE SIGNAL**\n\n**Symbol:** {symbol}\n**Time:** {candle_time_str}\n**RSI:** {check_rsi:.2f} (Prev: {prev_check_rsi:.2f})\n**Status:** CLOSE (Back to Oversold)"
+                                logger.warning("doubledip_alert_close", symbol=symbol, rsi=check_rsi)
+                                
+                                last_alert = f"CLOSE at {datetime.now().strftime('%H:%M:%S')} | RSI: {check_rsi:.2f}"
+                                dpg.set_value("doubledip_last_signal", last_alert)
+                                dpg.configure_item("doubledip_last_signal", color=(255,100,100))
+                                
+                                self._send_discord_alert(alert_msg, color=0xFF0000)
+                                self._play_alert_sound()
+                                self.doubledip_alerted_candles.add(check_timestamp)
+                    
+                    dpg.set_value("doubledip_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
+                    dpg.configure_item("doubledip_status", color=(150,150,150))
+                    return True
+
+                while self.doubledip_monitor_running:
+                    try:
+                        do_doubledip_analysis()
+                        
+                        # Sleep logic (similar to Donchian)
+                        now = datetime.now(ist)
+                        next_run = next_market_hour_boundary(now)
+                        sleep_seconds = (next_run - now).total_seconds() + 5
+                        
+                        # Cap sleep at 60s for responsiveness
+                        sleep_seconds = min(sleep_seconds, 60)
+                        time.sleep(sleep_seconds)
+                        
+                    except Exception as e:
+                        logger.error("doubledip_monitor_error", error=str(e))
+                        dpg.set_value("doubledip_status", f"Error: {str(e)}")
+                        dpg.configure_item("doubledip_status", color=(255,100,100))
+                        time.sleep(60)
+                
+                logger.info("doubledip_monitor_thread_ended")
+                
+            except Exception as e:
+                logger.error("doubledip_monitor_init_failed", error=str(e))
+                dpg.set_value("doubledip_status", f"Initialization failed: {str(e)}")
+                dpg.configure_item("doubledip_status", color=(255,100,100))
+                self.doubledip_monitor_running = False
+                dpg.configure_item("doubledip_start_btn", show=True)
+                dpg.configure_item("doubledip_stop_btn", show=False)
+
+        threading.Thread(target=doubledip_worker, daemon=True).start()
+
+    def stop_doubledip_monitor(self):
+        """Stop RSI Double-Dip monitoring"""
+        self.doubledip_monitor_running = False
+        dpg.configure_item("doubledip_start_btn", show=True)
+        dpg.configure_item("doubledip_stop_btn", show=False)
+        dpg.set_value("doubledip_status", "Monitor stopped")
+        dpg.configure_item("doubledip_status", color=(150,150,150))
+        dpg.bind_item_theme("tab_doubledip", 0)
+        logger.info("doubledip_monitor_stopped")
     
     def launch_donchian_monitor(self):
         """Start live Donchian Channel monitoring"""

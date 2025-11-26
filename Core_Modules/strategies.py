@@ -33,7 +33,37 @@ class TradingStrategies:
         ha_df['ha_high'] = ha_high
         ha_df['ha_low'] = ha_low
         ha_df['ha_close'] = ha_close
+        ha_df['ha_close'] = ha_close
         return ha_df[['ha_open', 'ha_high', 'ha_low', 'ha_close']]
+
+    @staticmethod
+    def calculate_rsi(series, period=14):
+        """
+        Calculate RSI using Wilder's Smoothing (RMA) to match TradingView/Pine Script.
+        
+        Args:
+            series: pandas Series of prices (usually close prices)
+            period: RSI period (default 14)
+            
+        Returns:
+            pandas Series containing RSI values
+        """
+        delta = series.diff()
+        gain = delta.where(delta > 0, 0)
+        loss = -delta.where(delta < 0, 0)
+        
+        # First average is simple mean
+        avg_gain = gain.rolling(window=period, min_periods=period).mean()
+        avg_loss = loss.rolling(window=period, min_periods=period).mean()
+        
+        # Subsequent averages use Wilder's Smoothing: ((Previous * (n-1)) + Current) / n
+        for i in range(period, len(gain)):
+            avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period - 1) + gain.iloc[i]) / period
+            avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period - 1) + loss.iloc[i]) / period
+        
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
 
     def __init__(self):
         self.trader = KiteTrader()
