@@ -1410,19 +1410,9 @@ Capital Required: Rs.{capital_required:,.2f}
                                 close_lookback = df['close'].iloc[:idx+1]
                             
                             if len(close_lookback) >= period + 1:
-                                delta_lb = close_lookback.diff()
-                                gain_lb = delta_lb.where(delta_lb > 0, 0)
-                                loss_lb = -delta_lb.where(delta_lb < 0, 0)
-                                avg_gain_lb = gain_lb.rolling(window=period, min_periods=period).mean()
-                                avg_loss_lb = loss_lb.rolling(window=period, min_periods=period).mean()
-                                
-                                for j in range(period, len(gain_lb)):
-                                    avg_gain_lb.iloc[j] = (avg_gain_lb.iloc[j-1] * (period - 1) + gain_lb.iloc[j]) / period
-                                    avg_loss_lb.iloc[j] = (avg_loss_lb.iloc[j-1] * (period - 1) + loss_lb.iloc[j]) / period
-                                
-                                rs_lb = avg_gain_lb / avg_loss_lb
-                                rsi_lb = 100 - (100 / (1 + rs_lb))
-                                lookback_rsi = float(rsi_lb.iloc[-1])
+                                from Core_Modules.utils import calculate_rsi
+                                rsi_lb = calculate_rsi(close_lookback.values, period)
+                                lookback_rsi = float(rsi_lb[-1])
                                 
                                 if lookback_rsi > 70:
                                     alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {lookback_rsi:.2f}\n**Status:** OVERBOUGHT (> 70)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
