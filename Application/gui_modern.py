@@ -25,9 +25,11 @@ from Core_Modules.utils import (
     export_positions_to_csv,
     export_holdings_to_csv
 )
-from Core_Modules.logger import get_logger
+from Core_Modules.logger import setup_logging, get_logger
 from Core_Modules.notifications import create_notification_manager_from_config
 
+# Setup logging with file output
+setup_logging(log_level="INFO", log_file="logs/gui_modern.log")
 logger = get_logger(__name__)
 
 

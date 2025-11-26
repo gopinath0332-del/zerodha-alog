@@ -134,9 +134,10 @@ def setup_logging(log_level="INFO", log_file=None):
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(log_level_int)
         
-        # JSON format for file
+        # Console format for file (human-readable, same as terminal)
+        from structlog.dev import ConsoleRenderer
         file_formatter = structlog.stdlib.ProcessorFormatter(
-            processor=structlog.processors.JSONRenderer(),
+            processor=ConsoleRenderer(colors=False),  # No colors in file
             foreign_pre_chain=shared_processors,
         )
         file_handler.setFormatter(file_formatter)
