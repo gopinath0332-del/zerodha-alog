@@ -369,6 +369,7 @@ class ModernTradingGUI:
                             dpg.add_button(label="Stop Monitor", tag="rsi_stop_btn", callback=self.stop_rsi_monitor, show=False)
                         dpg.add_spacer(height=10)
                         dpg.add_text("Current RSI: --", tag="rsi_current_value", color=(200,200,255))
+                        dpg.add_text("Live RSI: --", tag="rsi_live_value", color=(255,255,0))
                         dpg.add_text("Last Alert: --", tag="rsi_last_alert", color=(255,200,100))
                         dpg.add_spacer(height=10)
                         dpg.add_text("Status: Idle", tag="rsi_status", color=(150,150,150))
@@ -442,7 +443,8 @@ class ModernTradingGUI:
                         
                         # Status display
                         dpg.add_text("Status: Not running", tag="doubledip_status", color=(150,150,150))
-                        dpg.add_text("Current RSI: --", tag="doubledip_current_rsi", color=(255,255,255))
+                        dpg.add_text("RSI: --", tag="doubledip_current_rsi", color=(255,255,255))
+                        dpg.add_text("Live RSI: --", tag="doubledip_live_rsi", color=(255,255,0))
                         dpg.add_text("Last Signal: --", tag="doubledip_last_signal", color=(150,150,150))
                         
                         dpg.add_separator()
@@ -1424,17 +1426,39 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Calculate RSI using common strategy function
                     from Core_Modules.strategies import TradingStrategies
                     rsi = TradingStrategies.calculate_rsi(close, period=period)
+                    # ALERT LOGIC: Use LIVE candle (original behavior)
                     current_rsi = float(rsi.iloc[-1])
                     self.current_rsi_value = current_rsi
                     self.current_rsi_symbol = symbol
+                    
+                    # DISPLAY LOGIC: Use COMPLETED candle (to match Zerodha/Double-Dip)
+                    now = datetime.now(ist)
+                    last_candle_time = df['date'].iloc[-1]
+                    time_diff = (now - last_candle_time).total_seconds() / 3600
+                    
+                    if time_diff >= 1.0:
+                        display_rsi_idx = -1
+                        candle_status_display = "complete"
+                    else:
+                        display_rsi_idx = -2
+                        candle_status_display = "incomplete (showing previous)"
+                    
+                    display_rsi = float(rsi.iloc[display_rsi_idx])
+                    
                     current_time = datetime.now().strftime('%H:%M:%S')
                     logger.info(
                         "rsi_update",
-                        rsi=round(current_rsi, 2),
-                        last_candle=df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M'),
+                        live_rsi=round(current_rsi, 2),
+                        display_rsi=round(display_rsi, 2),
+                        last_candle=df['date'].iloc[-1].strftime('%Y-%m-%d %H:%M'),
+                        candle_status=candle_status_display,
                         close=round(close.iloc[-1], 2)
                     )
-                    dpg.set_value("rsi_current_value", f"Current RSI: {current_rsi:.2f}")
+                    
+                    # Show RSI with candle time for clarity (using completed candle)
+                    candle_time_str = df['date'].iloc[display_rsi_idx].strftime('%d %b %H:%M')
+                    dpg.set_value("rsi_current_value", f"RSI ({candle_time_str}): {display_rsi:.2f}")
+                    dpg.set_value("rsi_live_value", f"Live RSI: {current_rsi:.2f}")
                     nonlocal first_run, last_alert
                     
                     if first_run:
@@ -1733,12 +1757,37 @@ Capital Required: Rs.{capital_required:,.2f}
                     # Calculate RSI using common strategy function
                     rsi = TradingStrategies.calculate_rsi(close, period=rsi_period)
                     
-                    current_rsi = rsi.iloc[-1]
+                    # Determine which candle to use for "Current RSI" display
+                    # Use the last COMPLETED candle to match Zerodha's chart
+                    now = datetime.now(ist)
+                    last_candle_time = df['date'].iloc[-1]
+                    time_diff = (now - last_candle_time).total_seconds() / 3600
+                    
+                    if time_diff >= 1.0:
+                        # Last candle is complete, use it
+                        display_rsi_idx = -1
+                        candle_status_display = "complete"
+                    else:
+                        # Last candle is incomplete, use previous candle
+                        display_rsi_idx = -2
+                        candle_status_display = "incomplete (showing previous)"
+                    
+                    current_rsi = rsi.iloc[display_rsi_idx]
                     self.current_doubledip_rsi = current_rsi
                     self.current_doubledip_symbol = symbol
                     
-                    logger.info("doubledip_rsi_calculated", current_rsi=round(current_rsi, 2), last_close=round(close.iloc[-1], 2))
-                    dpg.set_value("doubledip_current_rsi", f"Current RSI: {current_rsi:.2f}")
+                    logger.info("doubledip_rsi_calculated", 
+                               current_rsi=round(current_rsi, 2), 
+                               last_close=round(close.iloc[display_rsi_idx], 2),
+                               candle_status=candle_status_display,
+                               candle_time=df['date'].iloc[display_rsi_idx].strftime('%Y-%m-%d %H:%M'))
+                    # Show RSI with candle time for clarity
+                    candle_time_str = df['date'].iloc[display_rsi_idx].strftime('%d %b %H:%M')
+                    dpg.set_value("doubledip_current_rsi", f"RSI ({candle_time_str}): {current_rsi:.2f}")
+                    
+                    # Calculate and display Live RSI (from the very last candle, regardless of completion)
+                    live_rsi = float(rsi.iloc[-1])
+                    dpg.set_value("doubledip_live_rsi", f"Live RSI: {live_rsi:.2f}")
                     
                     # Lookback on first run
                     if first_run:
