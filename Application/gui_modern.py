@@ -1693,6 +1693,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         return False
                     
                     # Fetch historical data
+                    logger.info("doubledip_fetching_data", symbol=symbol, days=30)
                     data = kite.historical_data(
                         instrument_token=instrument_token,
                         from_date=(datetime.now()-pd.Timedelta(days=30)).strftime('%Y-%m-%d'),
@@ -1702,11 +1703,13 @@ Capital Required: Rs.{capital_required:,.2f}
                     df = pd.DataFrame(data)
                     
                     if df.empty or 'close' not in df:
-                        logger.warning("no_data_received_from_api")
+                        logger.warning("doubledip_no_data", symbol=symbol)
                         dpg.set_value("doubledip_status", "No data found or API error.")
                         dpg.configure_item("doubledip_status", color=(255,100,100))
                         time.sleep(60)
                         return False
+                    
+                    logger.info("doubledip_data_fetched", candles=len(df), from_date=df['date'].iloc[0], to_date=df['date'].iloc[-1])
                     
                     # Convert dates to IST
                     df['date'] = pd.to_datetime(df['date'])
@@ -1717,6 +1720,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     
                     # Get candle type
                     candle_type = dpg.get_value("doubledip_candle_type") if dpg.does_item_exist("doubledip_candle_type") else "Normal"
+                    logger.info("doubledip_candle_type", type=candle_type)
                     if candle_type == "Heikin Ashi":
                         ha_df = TradingStrategies.heikin_ashi(df)
                         close = ha_df['ha_close']
@@ -1731,6 +1735,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     self.current_doubledip_rsi = current_rsi
                     self.current_doubledip_symbol = symbol
                     
+                    logger.info("doubledip_rsi_calculated", current_rsi=round(current_rsi, 2), last_close=round(close.iloc[-1], 2))
                     dpg.set_value("doubledip_current_rsi", f"Current RSI: {current_rsi:.2f}")
                     
                     # Lookback on first run
@@ -1788,11 +1793,15 @@ Capital Required: Rs.{capital_required:,.2f}
                             sig_time = most_recent_signal["time"]
                             sig_rsi = most_recent_signal["rsi"]
                             
+                            logger.info("doubledip_last_signal_found", type=sig_type, time=sig_time.strftime('%Y-%m-%d %H:%M'), rsi=round(sig_rsi, 2))
+                            
                             last_signal = f"{sig_type} at {sig_time.strftime('%d %b %H:%M')} | RSI: {sig_rsi:.2f}"
                             dpg.set_value("doubledip_last_signal", last_signal)
                             
                             color = (100,255,100) if sig_type == "LONG" else (255,100,100)
                             dpg.configure_item("doubledip_last_signal", color=color)
+                        else:
+                            logger.info("doubledip_no_signal_found", lookback_candles=lookback_count)
                         
                         first_run = False
                     
@@ -1805,9 +1814,17 @@ Capital Required: Rs.{capital_required:,.2f}
                     if time_diff >= 1.0:
                         # Last candle is complete
                         check_idx = -1
+                        candle_status = "complete"
                     else:
                         # Last candle is incomplete, check previous
                         check_idx = -2
+                        candle_status = "incomplete"
+                    
+                    logger.info("doubledip_candle_check", 
+                               check_idx=check_idx, 
+                               candle_status=candle_status,
+                               candle_time=df['date'].iloc[check_idx].strftime('%Y-%m-%d %H:%M'),
+                               time_diff_hours=round(time_diff, 2))
                     
                     if len(df) > abs(check_idx):
                         check_timestamp = df['date'].iloc[check_idx].isoformat()
@@ -1819,7 +1836,11 @@ Capital Required: Rs.{capital_required:,.2f}
                             if prev_check_rsi <= 30 and check_rsi > 30:
                                 candle_time_str = df['date'].iloc[check_idx].strftime('%Y-%m-%d %H:%M')
                                 alert_msg = f"**RSI DOUBLE-DIP LONG SIGNAL**\n\n**Symbol:** {symbol}\n**Time:** {candle_time_str}\n**RSI:** {check_rsi:.2f} (Prev: {prev_check_rsi:.2f})\n**Status:** LONG (Oversold Recovery)"
-                                logger.warning("doubledip_alert_long", symbol=symbol, rsi=check_rsi)
+                                logger.warning("doubledip_alert_long", 
+                                             symbol=symbol, 
+                                             candle_time=candle_time_str,
+                                             rsi=round(check_rsi, 2), 
+                                             prev_rsi=round(prev_check_rsi, 2))
                                 
                                 last_alert = f"LONG at {datetime.now().strftime('%H:%M:%S')} | RSI: {check_rsi:.2f}"
                                 dpg.set_value("doubledip_last_signal", last_alert)
@@ -1833,7 +1854,11 @@ Capital Required: Rs.{capital_required:,.2f}
                             elif prev_check_rsi >= 30 and check_rsi < 30:
                                 candle_time_str = df['date'].iloc[check_idx].strftime('%Y-%m-%d %H:%M')
                                 alert_msg = f"**RSI DOUBLE-DIP CLOSE SIGNAL**\n\n**Symbol:** {symbol}\n**Time:** {candle_time_str}\n**RSI:** {check_rsi:.2f} (Prev: {prev_check_rsi:.2f})\n**Status:** CLOSE (Back to Oversold)"
-                                logger.warning("doubledip_alert_close", symbol=symbol, rsi=check_rsi)
+                                logger.warning("doubledip_alert_close", 
+                                             symbol=symbol, 
+                                             candle_time=candle_time_str,
+                                             rsi=round(check_rsi, 2), 
+                                             prev_rsi=round(prev_check_rsi, 2))
                                 
                                 last_alert = f"CLOSE at {datetime.now().strftime('%H:%M:%S')} | RSI: {check_rsi:.2f}"
                                 dpg.set_value("doubledip_last_signal", last_alert)
@@ -1842,6 +1867,13 @@ Capital Required: Rs.{capital_required:,.2f}
                                 self._send_discord_alert(alert_msg, color=0xFF0000)
                                 self._play_alert_sound()
                                 self.doubledip_alerted_candles.add(check_timestamp)
+                            else:
+                                logger.info("doubledip_no_signal", 
+                                          candle_time=df['date'].iloc[check_idx].strftime('%Y-%m-%d %H:%M'),
+                                          rsi=round(check_rsi, 2), 
+                                          prev_rsi=round(prev_check_rsi, 2))
+                        else:
+                            logger.info("doubledip_already_alerted", candle_time=df['date'].iloc[check_idx].strftime('%Y-%m-%d %H:%M'))
                     
                     dpg.set_value("doubledip_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
                     dpg.configure_item("doubledip_status", color=(150,150,150))
