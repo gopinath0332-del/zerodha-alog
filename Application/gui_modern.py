@@ -1742,50 +1742,61 @@ Capital Required: Rs.{capital_required:,.2f}
                     if first_run:
                         # Check entire history (30 days) for the last signal to populate UI
                         lookback_count = len(df) - rsi_period
-                        logger.info("doubledip_lookback_start", lookback_count=lookback_count)
+                        
+                        # Log RSI range to help debug
+                        rsi_min = rsi.min()
+                        rsi_max = rsi.max()
+                        logger.info("doubledip_lookback_start", 
+                                   lookback_count=lookback_count,
+                                   rsi_min=round(rsi_min, 2),
+                                   rsi_max=round(rsi_max, 2))
                         
                         most_recent_signal = None
                         
-                        for i in range(lookback_count, 0, -1):
-                            idx = -1 - i
+                        # Iterate from oldest to newest to find the MOST RECENT signal
+                        # Start from rsi_period (skip NaN values) to the second-to-last candle
+                        for idx in range(rsi_period, len(df) - 1):
                             candle_date = df['date'].iloc[idx]
                             candle_timestamp = candle_date.isoformat()
                             
                             curr_rsi_val = rsi.iloc[idx]
-                            prev_rsi_val = rsi.iloc[idx-1] if idx > 0 else None
+                            prev_rsi_val = rsi.iloc[idx-1]
                             
-                            if prev_rsi_val is not None:
-                                # Check for LONG signal (cross over 30)
-                                if prev_rsi_val <= 30 and curr_rsi_val > 30:
-                                    # Track as most recent signal
-                                    most_recent_signal = {
-                                        "type": "LONG",
-                                        "time": candle_date,
-                                        "rsi": curr_rsi_val
-                                    }
-                                    
-                                    # Alert if missed (only check last 10 candles for alerts to avoid spam)
-                                    if i <= 10 and candle_timestamp not in self.doubledip_alerted_candles:
-                                        alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {curr_rsi_val:.2f} (Prev: {prev_rsi_val:.2f})\n**Status:** LONG SIGNAL (RSI Cross Over 30)"
-                                        logger.warning("doubledip_lookback_long", rsi=curr_rsi_val, time=candle_date)
-                                        self._send_discord_alert(alert_msg, color=0xFFD700)
-                                        self.doubledip_alerted_candles.add(candle_timestamp)
+                            # Skip if either value is NaN
+                            if pd.isna(curr_rsi_val) or pd.isna(prev_rsi_val):
+                                continue
+                            
+                            # Check for LONG signal (cross over 30)
+                            if prev_rsi_val <= 30 and curr_rsi_val > 30:
+                                # Track as most recent signal (will be overwritten if newer signal found)
+                                most_recent_signal = {
+                                    "type": "LONG",
+                                    "time": candle_date,
+                                    "rsi": curr_rsi_val
+                                }
                                 
-                                # Check for CLOSE signal (cross under 30)
-                                elif prev_rsi_val >= 30 and curr_rsi_val < 30:
-                                    # Track as most recent signal
-                                    most_recent_signal = {
-                                        "type": "CLOSE",
-                                        "time": candle_date,
-                                        "rsi": curr_rsi_val
-                                    }
-                                    
-                                    # Alert if missed (only check last 10 candles for alerts to avoid spam)
-                                    if i <= 10 and candle_timestamp not in self.doubledip_alerted_candles:
-                                        alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {curr_rsi_val:.2f} (Prev: {prev_rsi_val:.2f})\n**Status:** CLOSE SIGNAL (RSI Cross Under 30)"
-                                        logger.warning("doubledip_lookback_close", rsi=curr_rsi_val, time=candle_date)
-                                        self._send_discord_alert(alert_msg, color=0xFFD700)
-                                        self.doubledip_alerted_candles.add(candle_timestamp)
+                                # Alert if missed (only check last 10 candles for alerts to avoid spam)
+                                if idx >= len(df) - 10 and candle_timestamp not in self.doubledip_alerted_candles:
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {curr_rsi_val:.2f} (Prev: {prev_rsi_val:.2f})\n**Status:** LONG SIGNAL (RSI Cross Over 30)"
+                                    logger.warning("doubledip_lookback_long", rsi=curr_rsi_val, time=candle_date)
+                                    self._send_discord_alert(alert_msg, color=0xFFD700)
+                                    self.doubledip_alerted_candles.add(candle_timestamp)
+                            
+                            # Check for CLOSE signal (cross under 30)
+                            elif prev_rsi_val >= 30 and curr_rsi_val < 30:
+                                # Track as most recent signal (will be overwritten if newer signal found)
+                                most_recent_signal = {
+                                    "type": "CLOSE",
+                                    "time": candle_date,
+                                    "rsi": curr_rsi_val
+                                }
+                                
+                                # Alert if missed (only check last 10 candles for alerts to avoid spam)
+                                if idx >= len(df) - 10 and candle_timestamp not in self.doubledip_alerted_candles:
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**RSI:** {curr_rsi_val:.2f} (Prev: {prev_rsi_val:.2f})\n**Status:** CLOSE SIGNAL (RSI Cross Under 30)"
+                                    logger.warning("doubledip_lookback_close", rsi=curr_rsi_val, time=candle_date)
+                                    self._send_discord_alert(alert_msg, color=0xFFD700)
+                                    self.doubledip_alerted_candles.add(candle_timestamp)
                         
                         # Update UI with most recent signal found (even if old)
                         if most_recent_signal:
