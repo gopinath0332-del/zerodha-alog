@@ -359,7 +359,8 @@ class ModernTradingGUI:
                             dpg.add_button(label="Launch RSI Monitor", tag="rsi_start_btn", callback=self.launch_rsi_monitor)
                             dpg.add_button(label="Stop Monitor", tag="rsi_stop_btn", callback=self.stop_rsi_monitor, show=False)
                         dpg.add_spacer(height=10)
-                        dpg.add_text("Current RSI: --", tag="rsi_current_value", color=(200,200,255))
+                        dpg.add_text("Last Completed RSI: --", tag="rsi_completed_value", color=(200,200,255))
+                        dpg.add_text("Current RSI: --", tag="rsi_current_value", color=(150,150,200))
                         dpg.add_text("Last Alert: --", tag="rsi_last_alert", color=(255,200,100))
                         dpg.add_spacer(height=10)
                         dpg.add_text("Status: Idle", tag="rsi_status", color=(150,150,150))
@@ -1381,7 +1382,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         last_candle=completed_candle_time,
                         close=completed_close
                     )
-                    dpg.set_value("rsi_current_value", f"Last Completed RSI: {completed_rsi:.2f} (Candle: {completed_candle_time})")
+                    dpg.set_value("rsi_completed_value", f"Last Completed RSI: {completed_rsi:.2f} (Candle: {completed_candle_time})")
                     nonlocal first_run, last_alert
                     
                     if first_run:
@@ -1478,21 +1479,114 @@ Capital Required: Rs.{capital_required:,.2f}
                     dpg.set_value("rsi_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
                     dpg.configure_item("rsi_status", color=(150,150,150))
                     return True
+                
+                def update_current_rsi():
+                    """Update current candle RSI (incomplete candle)"""
+                    try:
+                        instrument_token = self._resolve_instrument_token(symbol)
+                        if not instrument_token:
+                            return
+                        
+                        data = kite.historical_data(
+                            instrument_token=instrument_token,
+                            from_date=(datetime.now()-pd.Timedelta(days=30)).strftime('%Y-%m-%d'),
+                            to_date=datetime.now().strftime('%Y-%m-%d'),
+                            interval="hour"
+                        )
+                        df = pd.DataFrame(data)
+                        if df.empty or 'close' not in df or len(df) < 15:
+                            return
+                        
+                        df['date'] = pd.to_datetime(df['date'])
+                        if df['date'].dt.tz is None:
+                            df['date'] = df['date'].dt.tz_localize('UTC').dt.tz_convert(ist)
+                        else:
+                            df['date'] = df['date'].dt.tz_convert(ist)
+                        
+                        # Candle type selection
+                        candle_type = dpg.get_value("rsi_candle_type")
+                        if candle_type == "Heikin Ashi":
+                            from Core_Modules.strategies import TradingStrategies
+                            ha_df = TradingStrategies.heikin_ashi(df)
+                            close = ha_df['ha_close']
+                        else:
+                            close = df['close']
+                        
+                        from Core_Modules.utils import calculate_rsi
+                        rsi = calculate_rsi(close.values, period)
+                        
+                        # Use the CURRENT (incomplete) candle for live updates
+                        if len(rsi) > 0:
+                            current_rsi = float(rsi[-1])
+                            current_candle_time = df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M')
+                            current_close = round(close.iloc[-1], 2)
+                            update_time = datetime.now(ist).strftime('%H:%M:%S')
+                            
+                            dpg.set_value("rsi_current_value", 
+                                f"Current RSI: {current_rsi:.2f} (Candle: {current_candle_time}, Close: {current_close}, Updated: {update_time})")
+                            
+                            logger.info(
+                                "rsi_current_update",
+                                rsi=round(current_rsi, 2),
+                                candle_time=current_candle_time,
+                                close=current_close,
+                                updated_at=update_time
+                            )
+                    except Exception as e:
+                        logger.error("current_rsi_update_error", error=str(e))
+                
                 # Immediate analysis
                 if self.rsi_monitor_running:
                     do_rsi_analysis()
-                # Schedule next checks at :15 mark
+                    update_current_rsi()  # Also update current RSI on start
+                
+                # Schedule next checks: hourly for completed candle, clock-aligned 10-min intervals for current candle
+                def next_10min_boundary(now):
+                    """Calculate next 10-minute clock boundary (:00, :10, :20, :30, :40, :50)"""
+                    current_minute = now.minute
+                    # Round up to next 10-minute mark
+                    next_minute = ((current_minute // 10) + 1) * 10
+                    if next_minute >= 60:
+                        # Move to next hour
+                        next_boundary = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                    else:
+                        next_boundary = now.replace(minute=next_minute, second=0, microsecond=0)
+                    return next_boundary
+                
                 while self.rsi_monitor_running:
                     now = datetime.now(ist)
-                    next_boundary = next_market_hour_boundary(now)
-                    wait_seconds = (next_boundary - now).total_seconds()
-                    if wait_seconds > 0:
-                        dpg.set_value("rsi_status", f"Waiting for next market hour boundary: {next_boundary.strftime('%H:%M')}")
+                    next_hourly = next_market_hour_boundary(now)
+                    next_10min = next_10min_boundary(now)
+                    
+                    # Determine which comes first: hourly boundary or 10-min boundary
+                    if next_10min < next_hourly:
+                        # Next event is a 10-minute update
+                        wait_seconds = (next_10min - now).total_seconds()
+                        dpg.set_value("rsi_status", f"Monitoring... Next update: {next_10min.strftime('%H:%M')}, Hourly check: {next_hourly.strftime('%H:%M')}")
                         dpg.configure_item("rsi_status", color=(200,200,100))
-                        time.sleep(wait_seconds)
-                    if not self.rsi_monitor_running:
-                        break
-                    do_rsi_analysis()
+                        
+                        if wait_seconds > 0:
+                            time.sleep(wait_seconds)
+                        
+                        if not self.rsi_monitor_running:
+                            break
+                        
+                        logger.info("rsi_10min_update_trigger", update_time=next_10min.strftime('%H:%M'))
+                        update_current_rsi()
+                    else:
+                        # Next event is hourly boundary
+                        wait_seconds = (next_hourly - now).total_seconds()
+                        dpg.set_value("rsi_status", f"Monitoring... Next hourly check: {next_hourly.strftime('%H:%M')}")
+                        dpg.configure_item("rsi_status", color=(200,200,100))
+                        
+                        if wait_seconds > 0:
+                            time.sleep(wait_seconds)
+                        
+                        if not self.rsi_monitor_running:
+                            break
+                        
+                        do_rsi_analysis()
+                        update_current_rsi()  # Update current RSI after hourly analysis
             except Exception as e:
                 error_msg = f"**Symbol:** {symbol}\n**Error:** {str(e)}\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 logger.error("rsi_monitor_exception", error=str(e), exc_info=True)
