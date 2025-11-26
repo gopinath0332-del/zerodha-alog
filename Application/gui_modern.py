@@ -135,9 +135,10 @@ class ModernTradingGUI:
                 dpg.add_theme_color(dpg.mvThemeCol_Header, (40, 120, 200))
                 dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (50, 140, 220))
                 dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (30, 100, 180))
-                dpg.add_theme_color(dpg.mvThemeCol_Tab, (30, 30, 40))
-                dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (50, 140, 220))
-                dpg.add_theme_color(dpg.mvThemeCol_TabActive, (40, 120, 200))
+                # Tab colors - updated for better active tab visibility
+                dpg.add_theme_color(dpg.mvThemeCol_Tab, (35, 35, 45))  # Inactive tab - slightly lighter
+                dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (50, 140, 220))  # Hover state
+                dpg.add_theme_color(dpg.mvThemeCol_TabActive, (60, 160, 240))  # Active tab - brighter blue
                 dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255))
                 
                 # Increased sizes for 4K displays
@@ -155,12 +156,12 @@ class ModernTradingGUI:
         # Set global font scaling for 4K displays
         dpg.set_global_font_scale(1.5)
 
-        # Theme for active monitors (Green tab)
+        # Theme for active monitors (Green tab) - updated for better tab selection visibility
         with dpg.theme(tag="active_monitor_theme"):
             with dpg.theme_component(dpg.mvTab):
-                dpg.add_theme_color(dpg.mvThemeCol_Tab, (0, 100, 0))
-                dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (0, 150, 0))
-                dpg.add_theme_color(dpg.mvThemeCol_TabActive, (0, 120, 0))
+                dpg.add_theme_color(dpg.mvThemeCol_Tab, (0, 80, 0))          # Unselected running monitor - darker green
+                dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (0, 180, 0))  # Hover - bright green
+                dpg.add_theme_color(dpg.mvThemeCol_TabActive, (0, 220, 0))   # Selected running monitor - very bright green
                 dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255))
     
     def setup_ui(self):
