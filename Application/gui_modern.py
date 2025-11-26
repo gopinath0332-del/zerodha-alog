@@ -1659,9 +1659,13 @@ Capital Required: Rs.{capital_required:,.2f}
                         low = df['low']
                         close = df['close']
                     # Upper band: highest high over upper_period
-                    upper_band = high.rolling(window=upper_period).max().iloc[-1]
+                    upper = high.rolling(window=upper_period).max()
                     # Lower band: lowest low over lower_period
-                    lower_band = low.rolling(window=lower_period).min().iloc[-1]
+                    lower = low.rolling(window=lower_period).min()
+                    
+                    # Get the final band values for display
+                    upper_band = upper.iloc[-1]
+                    lower_band = lower.iloc[-1]
                     
                     # Calculate previous candle's bands (excluding the last candle)
                     prev_upper_band = high.iloc[:-1].rolling(window=upper_period).max().iloc[-1]
@@ -1680,17 +1684,15 @@ Capital Required: Rs.{capital_required:,.2f}
                         lower=round(lower_band, 2)
                     )
                     
-                    dpg.set_value("donchian_current_price", f"Current Price: {current_price:.2f}")
-                    dpg.set_value("donchian_upper_band", f"Upper Band: {upper_band:.2f}")
-                    dpg.set_value("donchian_lower_band", f"Lower Band: {lower_band:.2f}")
+                    dpg.set_value("donchian_current_price", f"Current Price: ₹{current_price:.2f}")
+                    dpg.set_value("donchian_upper_band", f"Upper Band: ₹{upper_band:.2f}")
+                    dpg.set_value("donchian_lower_band", f"Lower Band: ₹{lower_band:.2f}")
                     
+                    # Lookback on first run to detect missed signals
                     if first_run:
-                        start_msg = f"**Symbol:** {symbol}\n**Interval:** {interval}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** Monitor Started\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        self._send_discord_alert(start_msg, color=0x3498DB)
-                        
-                        # LOOKBACK FEATURE: Check last 10 candles for missed signals on startup
-                        lookback_count = min(10, len(df) - 1)  # Check last 10 candles or all available
+                        lookback_count = min(10, len(df) - max(upper_period, lower_period))
                         logger.info("donchian_lookback_start", lookback_count=lookback_count)
+                        
                         
                         for i in range(lookback_count, 0, -1):  # Start from oldest to newest
                             idx = -1 - i  # Index from end of dataframe
@@ -1701,16 +1703,15 @@ Capital Required: Rs.{capital_required:,.2f}
                             if candle_timestamp in self.donchian_alerted_candles:
                                 continue
                             
-                            # Calculate bands excluding candles after this one
-                            lookback_high = high.iloc[:idx+1]
-                            lookback_low = low.iloc[:idx+1]
+                            # Get the close and bands for this candle
                             lookback_close = close.iloc[idx]
+                            lookback_upper = upper.iloc[idx] if idx < len(upper) else None
+                            lookback_lower = lower.iloc[idx] if idx < len(lower) else None
                             
-                            if len(lookback_high) >= upper_period:
-                                lookback_upper = lookback_high.iloc[:-1].rolling(window=upper_period).max().iloc[-1]
-                                
+                            # Check for bullish signal
+                            if lookback_upper is not None and not pd.isna(lookback_upper):
                                 if lookback_close >= lookback_upper:
-                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**Close:** {lookback_close:.2f}\n**20-Period High:** {lookback_upper:.2f}\n**Status:** BULLISH SIGNAL (Close > 20-Period High)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**Close:** {lookback_close:.2f}\n**20-Period High:** {lookback_upper:.2f}\n**Status:** BULLISH SIGNAL (Close >= 20-Period High)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                                     logger.warning(
                                         "donchian_lookback_bullish",
                                         candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
@@ -1720,11 +1721,10 @@ Capital Required: Rs.{capital_required:,.2f}
                                     self._send_discord_alert(alert_msg, color=0xFFD700)  # Gold color for lookback
                                     self.donchian_alerted_candles.add(candle_timestamp)
                             
-                            if len(lookback_low) >= lower_period:
-                                lookback_lower = lookback_low.iloc[:-1].rolling(window=lower_period).min().iloc[-1]
-                                
+                            # Check for bearish signal
+                            if lookback_lower is not None and not pd.isna(lookback_lower):
                                 if lookback_close <= lookback_lower:
-                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**Close:** {lookback_close:.2f}\n**10-Period Low:** {lookback_lower:.2f}\n**Status:** BEARISH SIGNAL (Close < 10-Period Low)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                                    alert_msg = f"**[MISSED SIGNAL - Lookback]**\n**Symbol:** {symbol}\n**Candle Time:** {candle_date.strftime('%Y-%m-%d %H:%M')}\n**Close:** {lookback_close:.2f}\n**10-Period Low:** {lookback_lower:.2f}\n**Status:** BEARISH SIGNAL (Close <= 10-Period Low)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                                     logger.warning(
                                         "donchian_lookback_bearish",
                                         candle_time=candle_date.strftime('%Y-%m-%d %H:%M'),
@@ -1736,88 +1736,88 @@ Capital Required: Rs.{capital_required:,.2f}
                         
                         first_run = False
                     
-                    # Get previous candle timestamp for deduplication
-                    prev_candle_timestamp = df['date'].iloc[-2].isoformat() if len(df) > 1 else None
-                    current_candle_timestamp = df['date'].iloc[-1].isoformat()
+                    # Determine which candle to check for close breakouts
+                    # The last candle (iloc[-1]) might be incomplete (current hour)
+                    # We need to check if it's a completed candle or not
+                    now = datetime.now(ist)
+                    last_candle_time = df['date'].iloc[-1]
                     
-                    # Check for previous candle close breakouts (earlier signal) with deduplication
-                    if prev_close is not None and prev_candle_timestamp:
+                    # Check if last candle is from a previous hour (completed)
+                    # If current time is 10:05 and last candle is 10:00, it's incomplete
+                    # If current time is 10:05 and last candle is 09:00, it's complete
+                    time_diff = (now - last_candle_time).total_seconds() / 3600  # hours
+                    
+                    if time_diff >= 1.0:
+                        # Last candle is complete (from at least 1 hour ago)
+                        check_candle_idx = -1
+                        check_candle_timestamp = df['date'].iloc[-1].isoformat()
+                        check_close = close.iloc[-1]
+                        check_upper = upper.iloc[-1]
+                        check_lower = lower.iloc[-1]
+                        candle_status = "complete"
+                    else:
+                        # Last candle is incomplete, check the second-to-last
+                        if len(df) > 1:
+                            check_candle_idx = -2
+                            check_candle_timestamp = df['date'].iloc[-2].isoformat()
+                            check_close = close.iloc[-2]
+                            check_upper = upper.iloc[-2]
+                            check_lower = lower.iloc[-2]
+                            candle_status = "checking_previous"
+                        else:
+                            # Not enough data
+                            check_candle_timestamp = None
+                            candle_status = "insufficient_data"
+                    
+                    # Log which candle we're checking
+                    if check_candle_timestamp:
                         logger.debug(
-                            "donchian_prev_candle_check",
-                            prev_close=round(prev_close, 2),
-                            prev_upper_band=round(prev_upper_band, 2),
-                            prev_lower_band=round(prev_lower_band, 2),
-                            already_alerted=prev_candle_timestamp in self.donchian_alerted_candles
+                            "donchian_candle_check",
+                            candle_idx=check_candle_idx,
+                            candle_time=df['date'].iloc[check_candle_idx].strftime('%Y-%m-%d %H:%M'),
+                            candle_status=candle_status,
+                            time_diff_hours=round(time_diff, 2),
+                            close=round(check_close, 2),
+                            upper_band=round(check_upper, 2),
+                            lower_band=round(check_lower, 2),
+                            already_alerted=check_candle_timestamp in self.donchian_alerted_candles
                         )
                         
-                        if prev_close >= prev_upper_band and prev_candle_timestamp not in self.donchian_alerted_candles:
-                            last_alert = f"PREV CANDLE CLOSE ABOVE at {datetime.now().strftime('%H:%M:%S')} | Close: {prev_close:.2f}"
-                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**20-Period High:** {prev_upper_band:.2f}\n**Status:** BULLISH SIGNAL (Prev Candle Close >= 20-Period High)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        # Check for close breakouts with deduplication
+                        if check_close >= check_upper and check_candle_timestamp not in self.donchian_alerted_candles:
+                            candle_time_str = df['date'].iloc[check_candle_idx].strftime('%Y-%m-%d %H:%M')
+                            last_alert = f"CANDLE CLOSE ABOVE at {datetime.now().strftime('%H:%M:%S')} | Close: {check_close:.2f}"
+                            alert_msg = f"**DONCHIAN BULLISH SIGNAL**\n\n**Symbol:** {symbol}\n**Candle Time:** {candle_time_str}\n**Close:** {check_close:.2f}\n**20-Period High:** {check_upper:.2f}\n**Status:** BULLISH (Close >= 20-Period High)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                             logger.warning(
-                                "donchian_alert_prev_candle_bullish",
+                                "donchian_alert_candle_close_bullish",
                                 symbol=symbol,
-                                prev_close=round(prev_close, 2),
-                                prev_upper_band=round(prev_upper_band, 2)
+                                candle_time=candle_time_str,
+                                close=round(check_close, 2),
+                                upper_band=round(check_upper, 2)
                             )
                             dpg.set_value("donchian_last_alert", last_alert)
                             dpg.configure_item("donchian_last_alert", color=(100,255,100))
                             self._send_discord_alert(alert_msg, color=0x00FF00)
                             self._play_alert_sound()
-                            self.donchian_alerted_candles.add(prev_candle_timestamp)
-                        elif prev_close <= prev_lower_band and prev_candle_timestamp not in self.donchian_alerted_candles:
-                            last_alert = f"PREV CANDLE CLOSE BELOW at {datetime.now().strftime('%H:%M:%S')} | Close: {prev_close:.2f}"
-                            alert_msg = f"**Symbol:** {symbol}\n**Previous Close:** {prev_close:.2f}\n**10-Period Low:** {prev_lower_band:.2f}\n**Status:** BEARISH SIGNAL (Prev Candle Close <= 10-Period Low)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                            self.donchian_alerted_candles.add(check_candle_timestamp)
+                        elif check_close <= check_lower and check_candle_timestamp not in self.donchian_alerted_candles:
+                            candle_time_str = df['date'].iloc[check_candle_idx].strftime('%Y-%m-%d %H:%M')
+                            last_alert = f"CANDLE CLOSE BELOW at {datetime.now().strftime('%H:%M:%S')} | Close: {check_close:.2f}"
+                            alert_msg = f"**DONCHIAN BEARISH SIGNAL**\n\n**Symbol:** {symbol}\n**Candle Time:** {candle_time_str}\n**Close:** {check_close:.2f}\n**10-Period Low:** {check_lower:.2f}\n**Status:** BEARISH (Close <= 10-Period Low)\n**Detected:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                             logger.warning(
-                                "donchian_alert_prev_candle_bearish",
+                                "donchian_alert_candle_close_bearish",
                                 symbol=symbol,
-                                prev_close=round(prev_close, 2),
-                                prev_lower_band=round(prev_lower_band, 2)
+                                candle_time=candle_time_str,
+                                close=round(check_close, 2),
+                                lower_band=round(check_lower, 2)
                             )
                             dpg.set_value("donchian_last_alert", last_alert)
                             dpg.configure_item("donchian_last_alert", color=(255,100,100))
                             self._send_discord_alert(alert_msg, color=0xFF0000)
                             self._play_alert_sound()
-                            self.donchian_alerted_candles.add(prev_candle_timestamp)
-                    
-                    # Check for current price breakouts with deduplication
-                    logger.debug(
-                        "donchian_current_price_check",
-                        current_price=round(current_price, 2),
-                        upper_band=round(upper_band, 2),
-                        lower_band=round(lower_band, 2),
-                        already_alerted=current_candle_timestamp in self.donchian_alerted_candles
-                    )
-                    
-                    if current_price >= upper_band and current_candle_timestamp not in self.donchian_alerted_candles:
-                        last_alert = f"BREAKOUT ABOVE at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
-                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Upper Band:** {upper_band:.2f}\n**Status:** BULLISH BREAKOUT (Price >= Upper Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        logger.warning(
-                            "donchian_alert_bullish_breakout",
-                            symbol=symbol,
-                            price=round(current_price, 2),
-                            upper_band=round(upper_band, 2)
-                        )
-                        dpg.set_value("donchian_last_alert", last_alert)
-                        dpg.configure_item("donchian_last_alert", color=(100,255,100))
-                        self._send_discord_alert(alert_msg, color=0x33FF57)
-                        self._play_alert_sound()
-                        self.donchian_alerted_candles.add(current_candle_timestamp)
-                    elif current_price <= lower_band and current_candle_timestamp not in self.donchian_alerted_candles:
-                        last_alert = f"BREAKDOWN BELOW at {datetime.now().strftime('%H:%M:%S')} | Price: {current_price:.2f}"
-                        alert_msg = f"**Symbol:** {symbol}\n**Price:** {current_price:.2f}\n**Lower Band:** {lower_band:.2f}\n**Status:** BEARISH BREAKDOWN (Price <= Lower Band)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        logger.warning(
-                            "donchian_alert_bearish_breakout",
-                            symbol=symbol,
-                            price=round(current_price, 2),
-                            lower_band=round(lower_band, 2)
-                        )
-                        dpg.set_value("donchian_last_alert", last_alert)
-                        dpg.configure_item("donchian_last_alert", color=(255,100,100))
-                        self._send_discord_alert(alert_msg, color=0xFF5733)
-                        self._play_alert_sound()
-                        self.donchian_alerted_candles.add(current_candle_timestamp)
-                    else:
-                        dpg.set_value("donchian_last_alert", last_alert)
+                            self.donchian_alerted_candles.add(check_candle_timestamp)
+                        else:
+                            dpg.set_value("donchian_last_alert", last_alert)
                     
                     dpg.set_value("donchian_status", f"Monitoring... Last checked: {datetime.now().strftime('%H:%M:%S')}")
                     dpg.configure_item("donchian_status", color=(150,150,150))
