@@ -84,7 +84,9 @@ class ModernTradingGUI:
         self.instruments_cache_time = None  # When cache was created
         self.instruments_cache_exchange = None  # Which exchange is cached
         self.rsi_monitor_running = False  # Track RSI monitor state
-        self.current_rsi_value = None  # Track current RSI value for alerts
+        self.current_rsi = None  # Track current (incomplete) candle RSI
+        self.last_completed_rsi = None  # Track last completed candle RSI
+        self.last_completed_rsi_time = None  # Track last completed candle time
         self.current_rsi_symbol = None  # Track symbol being monitored
         self.rsi_alerted_candles = set()  # Track candle timestamps that triggered RSI alerts
         self.donchian_monitor_running = False  # Track Donchian monitor state
@@ -1373,12 +1375,14 @@ Capital Required: Rs.{capital_required:,.2f}
                         completed_rsi = float('nan')
                         completed_candle_time = '--'
                         completed_close = float('nan')
-                    self.current_rsi_value = completed_rsi
+                    # Store last completed RSI separately
+                    self.last_completed_rsi = completed_rsi
+                    self.last_completed_rsi_time = completed_candle_time
                     self.current_rsi_symbol = symbol
                     current_time = datetime.now().strftime('%H:%M:%S')
                     logger.info(
                         "rsi_update",
-                        rsi=round(completed_rsi, 2),
+                        completed_rsi=round(completed_rsi, 2),
                         last_candle=completed_candle_time,
                         close=completed_close
                     )
@@ -1515,20 +1519,35 @@ Capital Required: Rs.{capital_required:,.2f}
                         from Core_Modules.utils import calculate_rsi
                         rsi = calculate_rsi(close.values, period)
                         
-                        # Use the CURRENT (incomplete) candle for live updates
-                        if len(rsi) > 0:
+                        # Update BOTH current (incomplete) and last completed RSI
+                        if len(rsi) > 1:
+                            # Current (incomplete) candle RSI
                             current_rsi = float(rsi[-1])
                             current_candle_time = df.iloc[-1]['date'].strftime('%Y-%m-%d %H:%M')
                             current_close = round(close.iloc[-1], 2)
                             update_time = datetime.now(ist).strftime('%H:%M:%S')
                             
+                            # Last completed candle RSI
+                            completed_rsi = float(rsi[-2])
+                            completed_candle_time = df.iloc[-2]['date'].strftime('%Y-%m-%d %H:%M')
+                            
+                            # Update instance variables
+                            self.current_rsi = current_rsi
+                            self.last_completed_rsi = completed_rsi
+                            self.last_completed_rsi_time = completed_candle_time
+                            
+                            # Update GUI displays
                             dpg.set_value("rsi_current_value", 
                                 f"Current RSI: {current_rsi:.2f} (Candle: {current_candle_time}, Close: {current_close}, Updated: {update_time})")
+                            dpg.set_value("rsi_completed_value", 
+                                f"Last Completed RSI: {completed_rsi:.2f} (Candle: {completed_candle_time})")
                             
                             logger.info(
                                 "rsi_current_update",
-                                rsi=round(current_rsi, 2),
-                                candle_time=current_candle_time,
+                                current_rsi=round(current_rsi, 2),
+                                completed_rsi=round(completed_rsi, 2),
+                                current_candle_time=current_candle_time,
+                                completed_candle_time=completed_candle_time,
                                 close=current_close,
                                 updated_at=update_time
                             )
@@ -1539,6 +1558,9 @@ Capital Required: Rs.{capital_required:,.2f}
                 if self.rsi_monitor_running:
                     do_rsi_analysis()
                     update_current_rsi()  # Also update current RSI on start
+                
+                # Track the last hourly update time to ensure we don't miss hourly boundaries
+                last_hourly_update = datetime.now(ist).replace(minute=0, second=0, microsecond=0)
                 
                 # Schedule next checks: hourly for completed candle, clock-aligned 10-min intervals for current candle
                 def next_10min_boundary(now):
@@ -1557,11 +1579,15 @@ Capital Required: Rs.{capital_required:,.2f}
                     now = datetime.now(ist)
                     next_hourly = next_market_hour_boundary(now)
                     next_10min = next_10min_boundary(now)
+                    current_hour = now.replace(minute=0, second=0, microsecond=0)
+                    
+                    # Check if we've crossed an hourly boundary since last update
+                    hourly_update_needed = current_hour > last_hourly_update
                     
                     # Determine which comes first: hourly boundary or 10-min boundary
-                    if next_10min == next_hourly:
-                        # Both events coincide at top of hour - do full analysis
-                        wait_seconds = (next_hourly - now).total_seconds()
+                    if next_10min == next_hourly or hourly_update_needed:
+                        # Either both events coincide at top of hour OR we've crossed an hourly boundary
+                        wait_seconds = (next_hourly - now).total_seconds() if not hourly_update_needed else 0
                         dpg.set_value("rsi_status", f"Monitoring... Next hourly check: {next_hourly.strftime('%H:%M')}")
                         dpg.configure_item("rsi_status", color=(200,200,100))
                         
@@ -1574,6 +1600,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         logger.info("rsi_hourly_update_trigger", update_time=next_hourly.strftime('%H:%M'))
                         do_rsi_analysis()  # Update completed RSI and check alerts
                         update_current_rsi()  # Update current RSI
+                        last_hourly_update = datetime.now(ist).replace(minute=0, second=0, microsecond=0)
                     elif next_10min < next_hourly:
                         # Next event is a 10-minute update (not hourly)
                         wait_seconds = (next_10min - now).total_seconds()
@@ -1599,7 +1626,7 @@ Capital Required: Rs.{capital_required:,.2f}
                 dpg.configure_item("rsi_status", color=(255,100,100))
                 self._send_discord_alert(error_msg, color=0xFF0000)
             finally:
-                rsi_info = f"\n**RSI:** {self.current_rsi_value:.2f}" if self.current_rsi_value else ""
+                rsi_info = f"\n**Last Completed RSI:** {self.last_completed_rsi:.2f}" if self.last_completed_rsi else ""
                 stop_msg = f"**Symbol:** {symbol}{rsi_info}\n**Status:** Monitor Stopped (Thread Exit)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 logger.info("rsi_monitor_stopped", symbol=symbol)
                 self._send_discord_alert(stop_msg, color=0x808080)
@@ -1618,7 +1645,7 @@ Capital Required: Rs.{capital_required:,.2f}
         
         # Send Discord alert for manual stop with current RSI
         symbol_info = f"**Symbol:** {self.current_rsi_symbol}\n" if self.current_rsi_symbol else ""
-        rsi_info = f"**RSI:** {self.current_rsi_value:.2f}\n" if self.current_rsi_value else ""
+        rsi_info = f"**Last Completed RSI:** {self.last_completed_rsi:.2f}\n" if self.last_completed_rsi else ""
         stop_msg = f"{symbol_info}{rsi_info}**Status:** Monitor Stopped (User Request)\n**Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         self._send_discord_alert(stop_msg, color=0x808080)  # Gray
         
