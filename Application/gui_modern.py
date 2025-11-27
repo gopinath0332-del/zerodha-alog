@@ -1386,7 +1386,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         last_candle=completed_candle_time,
                         close=completed_close
                     )
-                    dpg.set_value("rsi_completed_value", f"Last Completed RSI: {completed_rsi:.2f} (Candle: {completed_candle_time})")
+                    # Note: GUI display update is handled by update_current_rsi() which is called after this
                     nonlocal first_run, last_alert
                     
                     if first_run:
