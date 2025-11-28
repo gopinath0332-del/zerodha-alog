@@ -1485,7 +1485,7 @@ Capital Required: Rs.{capital_required:,.2f}
                     return True
                 
                 def update_current_rsi():
-                    """Update current candle RSI (incomplete candle)"""
+                    """Update current candle RSI (incomplete candle) - does NOT update last completed RSI"""
                     try:
                         instrument_token = self._resolve_instrument_token(symbol)
                         if not instrument_token:
@@ -1519,7 +1519,7 @@ Capital Required: Rs.{capital_required:,.2f}
                         from Core_Modules.utils import calculate_rsi
                         rsi = calculate_rsi(close.values, period)
                         
-                        # Update BOTH current (incomplete) and last completed RSI
+                        # Update ONLY current (incomplete) candle RSI - NOT last completed RSI
                         if len(rsi) > 1:
                             # Current (incomplete) candle RSI
                             current_rsi = float(rsi[-1])
@@ -1527,27 +1527,17 @@ Capital Required: Rs.{capital_required:,.2f}
                             current_close = round(close.iloc[-1], 2)
                             update_time = datetime.now(ist).strftime('%H:%M:%S')
                             
-                            # Last completed candle RSI
-                            completed_rsi = float(rsi[-2])
-                            completed_candle_time = df.iloc[-2]['date'].strftime('%Y-%m-%d %H:%M')
-                            
-                            # Update instance variables
+                            # Update instance variable for current RSI only
                             self.current_rsi = current_rsi
-                            self.last_completed_rsi = completed_rsi
-                            self.last_completed_rsi_time = completed_candle_time
                             
-                            # Update GUI displays
+                            # Update GUI display for current RSI only
                             dpg.set_value("rsi_current_value", 
                                 f"Current RSI: {current_rsi:.2f} (Candle: {current_candle_time}, Close: {current_close}, Updated: {update_time})")
-                            dpg.set_value("rsi_completed_value", 
-                                f"Last Completed RSI: {completed_rsi:.2f} (Candle: {completed_candle_time})")
                             
                             logger.info(
                                 "rsi_current_update",
                                 current_rsi=round(current_rsi, 2),
-                                completed_rsi=round(completed_rsi, 2),
                                 current_candle_time=current_candle_time,
-                                completed_candle_time=completed_candle_time,
                                 close=current_close,
                                 updated_at=update_time
                             )
