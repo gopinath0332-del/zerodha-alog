@@ -97,21 +97,15 @@ When making changes, update:
 
 Before committing:
 
-1. **GUI Testing:**
+1. **CLI Testing:**
 
    ```bash
-   ./run_gui_modern.sh
-   # Test the changed feature
-   ```
-
-2. **CLI Testing:**
-
-   ```bash
-   ./run_cli_enhanced.sh
+   ./run.sh
+   # Select Option 3
    # Test the same feature
    ```
 
-3. **Verify Parity:**
+2. **Verify Functionality:**
    - Same data displayed
    - Same functionality
    - Same error handling

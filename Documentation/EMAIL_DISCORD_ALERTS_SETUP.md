@@ -180,21 +180,22 @@ python3.9 -c "from Core_Modules.notifications import create_notification_manager
 Test results: {'email': True, 'discord': True}
 ```
 
-## Usage in GUI
+## Usage in CLI
 
 Once configured, the notification system works automatically:
 
-1. **Launch the GUI**:
+1. **Launch the CLI**:
 
    ```bash
-   ./run_gui_modern.sh
+   ./run.sh
    ```
 
 2. **Start a Strategy Monitor**:
 
-   - Go to "NatgasMini" or "GOLDPETAL" tab
+   - Select Option 7 (Strategy Monitors)
+   - Choose a strategy (NatgasMini or GOLDPETAL)
    - Select a futures contract
-   - Click "Start Monitor"
+   - The monitor starts in the background
 
 3. **Receive Alerts**:
    - Monitor start confirmation (email + Discord)

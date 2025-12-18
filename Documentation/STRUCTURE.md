@@ -14,7 +14,7 @@ my-trade-py/
 │
 ├── Application/               # Main applications
 │   ├── __init__.py
-│   ├── main.py                # Interactive CLI application
+│   ├── main_enhanced.py       # Enhanced CLI trading terminal
 │   └── verify_setup.py        # Setup verification script
 │
 ├── Examples/                  # Example scripts
@@ -35,7 +35,9 @@ my-trade-py/
 │   └── PROJECT_OVERVIEW.md    # Detailed project overview
 │
 ├── README.md                  # Root README (quick reference)
-└── launcher.py                # Main launcher script
+├── launcher.py                # Main launcher script
+├── run.sh                     # Quick launch script
+└── run.sh                     # Quick launch script
 ```
 
 ## Directory Descriptions
@@ -55,7 +57,7 @@ Contains all the core trading functionality:
 
 User-facing applications:
 
-- **main.py**: Interactive CLI with menu-driven interface
+- **main_enhanced.py**: Feature-rich terminal interface with menus, tables, and colors
 - **verify_setup.py**: Checks if environment is properly configured
 
 ### Examples/
@@ -93,7 +95,7 @@ All scripts should be run from the project root:
 # From project root (my-trade-py/)
 python3.9 launcher.py                    # Main launcher
 python3.9 Application/verify_setup.py    # Verify setup
-python3.9 Application/main.py            # Trading app
+python3.9 Application/main_enhanced.py   # Trading app (Enhanced CLI)
 python3.9 Examples/basic_order.py        # Run examples
 ```
 

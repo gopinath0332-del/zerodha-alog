@@ -2,14 +2,14 @@
 
 ## Overview
 
-The Donchian Channel Strategy has been integrated into the Modern Trading Terminal alongside the RSI monitoring system. It provides automated detection of trend reversals and price breakouts using the Donchian Channel technical indicator.
+The Donchian Channel Strategy has been integrated into the Enhanced CLI. It provides automated detection of trend reversals and price breakouts using the Donchian Channel technical indicator.
 
 ## What are Donchian Channels?
 
 Donchian Channels consist of three lines plotted on a price chart:
 
 - **Upper Band**: The highest price a security reached over a specific lookback period (default: 20 periods)
-- **Lower Band**: The lowest price a security reached over a specific lookback period (default: 10 periods)  
+- **Lower Band**: The lowest price a security reached over a specific lookback period (default: 10 periods)
 - **Middle Band**: The average of the upper and lower bands
 
 The strategy identifies trading opportunities when the price breaks beyond these bands, signaling potential trend reversals or continuation.
@@ -25,9 +25,11 @@ The strategy identifies trading opportunities when the price breaks beyond these
 
 ### User Interface
 
-In the **Donchian** tab, you can:
+### User Interface
 
-1. **Set Symbol**: Enter the commodity symbol (e.g., `GOLDPETAL`)
+In the **Strategy Monitors > GOLDPETAL Donchian** menu, you can:
+
+1. **Set Symbol**: Select the commodity symbol (e.g., `GOLDPETAL`)
 2. **Upper Band Period**: Number of periods to calculate highest high (default: 20)
 3. **Lower Band Period**: Number of periods to calculate lowest low (default: 10)
 4. **Interval**: Choose analysis interval (currently 1hour)
@@ -37,10 +39,12 @@ In the **Donchian** tab, you can:
 ### Real-Time Analysis
 
 1. **Market Hour Boundary**: The monitor checks at the start of each new hour
-   - First analysis runs immediately when you click "Launch Donchian Monitor"
+
+   - First analysis runs immediately when you start the monitor
    - Subsequent checks occur at hourly boundaries (9:00, 10:00, 11:00, etc.)
 
 2. **Data Calculation**:
+
    - Fetches 30 days of historical hourly data
    - Calculates upper band = highest high over last N periods
    - Calculates lower band = lowest low over last M periods
@@ -52,7 +56,7 @@ In the **Donchian** tab, you can:
 
 ### Display Information
 
-The tab shows in real-time:
+The monitor dashboard shows in real-time:
 
 - **Current Price**: Latest closing price
 - **Upper Band**: Upper resistance level
@@ -103,15 +107,12 @@ The monitor uses **hourly boundaries** (9:00 AM, 10:00 AM, etc.) for check inter
 
 ## Usage Example
 
-1. Open the **Donchian** tab in the Trading Terminal
-2. (Optional) Adjust band periods if desired:
-   - Shorter periods = More sensitive, more alerts
-   - Longer periods = Fewer alerts, better trend confirmation
-3. Click **"Launch Donchian Monitor"**
-4. Watch for alerts:
-   - Green: Uptrend breakout (consider BUY)
-   - Red: Downtrend breakdown (consider SELL)
-5. Click **"Stop Monitor"** to end monitoring
+1. Select **Option 7 (Strategy Monitors)** from the main menu
+2. Select **Option 2 (GOLDPETAL Donchian)**
+3. Select a futures contract
+4. Monitor starts immediately in the background
+5. Returns to main menu (Monitor status shown in blue)
+6. To stop: Return to Strategy Monitors menu and select **Stop All** or specific monitor
 
 ## Customization
 

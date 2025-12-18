@@ -1,6 +1,6 @@
 # Automated Authentication Setup
 
-The modern GUI supports automated token capture, eliminating the need to manually copy-paste request tokens.
+The application supports automated token capture, eliminating the need to manually copy-paste request tokens.
 
 ## Setup Instructions
 
@@ -26,27 +26,20 @@ REDIRECT_URL=http://127.0.0.1:8888
 
 ### 3. Using Automated Authentication
 
-1. Launch the modern GUI:
+1. Run the authentication script:
 
    ```bash
-   ./run_gui_modern.sh
+   python Application/authenticate.py
    ```
 
-2. Click **"Authenticate"** button in the GUI
+2. The script will:
 
-3. Click **"Start Authentication"** in the dialog
+   - Start a local callback server
+   - Print the login URL (and try to open it)
+   - Wait for the callback
 
-4. The process will:
-   - Start a local callback server on port 8888
-   - Open Zerodha login page in your browser
-   - Wait for you to complete login
-   - Automatically capture the request token
-   - Complete authentication without manual copy-paste
-
-5. After successful login in the browser, return to the GUI
-   - Token is captured automatically
-   - Authentication completes in the background
-   - You'll see "Authenticated" status
+3. Login in your browser.
+4. Once redirected to localhost, the script will capture the token automatically.
 
 ## Manual Fallback
 

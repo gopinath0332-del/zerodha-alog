@@ -4,7 +4,7 @@
 
 ```
 my-trade-py/
-├── Core Modules
+├── Core_Modules
 │   ├── config.py              # Configuration settings
 │   ├── auth.py                # Authentication & session management
 │   ├── trader.py              # Main trading operations
@@ -13,7 +13,7 @@ my-trade-py/
 │   └── utils.py               # Utility functions
 │
 ├── Application
-│   ├── main.py                # Interactive CLI application
+│   ├── main_enhanced.py       # Enhanced CLI trading terminal
 │   └── verify_setup.py        # Setup verification script
 │
 ├── Examples
@@ -57,12 +57,13 @@ my-trade-py/
 - Portfolio methods (positions, holdings, margins)
 - Helper methods for common order types
 
-### 4. WebSocket Ticker (`websocket_ticker.py`)
+### 6. Enhanced CLI (`main_enhanced.py`)
 
-- Real-time market data streaming
-- Tick data subscription management
-- Callback handlers for ticks, connection events
-- Support for LTP, QUOTE, and FULL modes
+- Feature-complete terminal interface
+- Real-time data tables
+- Interactive menus
+- Portfolio dashboard
+- Trading capability
 
 ### 5. Strategies (`strategies.py`)
 
@@ -193,7 +194,7 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
 ### Order Safety
 
 - All order examples are commented by default
-- Interactive confirmation for orders in `main.py`
+- Interactive confirmation for orders in CLI
 - Clear warnings before executing real trades
 
 ### Access Tokens
@@ -213,11 +214,13 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
 ### Key API Endpoints Used
 
 1. **Session Management**
+
    - `login_url()` - Get login URL
    - `generate_session()` - Generate access token
    - `profile()` - Get user profile
 
 2. **Market Data**
+
    - `instruments()` - Get all instruments
    - `quote()` - Get full quote
    - `ltp()` - Get last traded price
@@ -225,6 +228,7 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
    - `historical_data()` - Get candles
 
 3. **Orders**
+
    - `place_order()` - Place new order
    - `modify_order()` - Modify existing order
    - `cancel_order()` - Cancel order
@@ -232,6 +236,7 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
    - `order_history()` - Get order history
 
 4. **Portfolio**
+
    - `positions()` - Get positions
    - `holdings()` - Get holdings
    - `margins()` - Get margins
@@ -248,19 +253,22 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
 1. **Morning Setup**
 
    ```bash
-   python auth.py  # Authenticate for the day
-   python main.py  # Open interactive app
+   python Application/authenticate.py  # Authenticate for the day
+   ./run.sh                            # Open interactive app
    ```
 
 2. **Check Portfolio**
+
    - Option 2: View Portfolio
    - Option 7: View Margins
 
 3. **Analyze Market**
+
    - Option 1: View Market Data
    - Or run: `python examples/basic_order.py`
 
 4. **Execute Trades**
+
    - Option 3: Place Order
    - Or use trader methods programmatically
 
@@ -274,7 +282,7 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
 
    ```python
    from strategies import TradingStrategies
-   
+
    strategy = TradingStrategies()
    # Test with simulation mode (orders commented)
    ```
@@ -283,13 +291,14 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
 
    ```python
    from trader import KiteTrader
-   
+
    trader = KiteTrader()
    data = trader.get_historical_data(...)
    # Analyze and backtest
    ```
 
 3. **Paper Trade**
+
    - Test with small quantities
    - Monitor performance
    - Adjust parameters
@@ -334,19 +343,23 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
 ### Common Issues
 
 1. **"Invalid API credentials"**
+
    - Check API_KEY and API_SECRET in .env
    - Verify app is enabled on Kite Connect
 
 2. **"Token is invalid"**
+
    - Run `python auth.py` to get new token
    - Tokens expire daily
 
 3. **"Order placement failed"**
+
    - Check margin availability
    - Verify symbol format (e.g., 'INFY' not 'NSE:INFY' for orders)
    - Check market hours
 
 4. **"Import errors"**
+
    - Run: `pip install -r requirements.txt`
    - Activate virtual environment
 
@@ -360,26 +373,31 @@ print(f"Total P&L: ₹{summary['total_pnl']:,.2f}")
 ### Enhancements to Consider
 
 1. **Database Integration**
+
    - Store historical trades
    - Track strategy performance
    - Maintain audit logs
 
 2. **Advanced Strategies**
+
    - Moving average crossovers
    - RSI/MACD indicators
    - Options strategies
 
 3. **Risk Management**
+
    - Daily loss limits
    - Position concentration limits
    - Correlation analysis
 
 4. **Notifications**
+
    - Email/SMS alerts
    - Telegram bot integration
    - Order execution notifications
 
 5. **Backtesting Framework**
+
    - Historical data analysis
    - Strategy optimization
    - Performance metrics

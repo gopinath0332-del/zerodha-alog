@@ -13,22 +13,21 @@ A Python-based automated trading system for Zerodha using the KiteConnect API.
 
 ## Project Structure
 
-```
 my-trade-py/
-├── auth.py                 # Authentication module
-├── config.py               # Configuration settings
-├── trader.py               # Main trading class
-├── websocket_ticker.py     # WebSocket streaming
-├── main.py                 # Interactive CLI application
-├── requirements.txt        # Python dependencies
-├── .env.example           # Environment variables template
-├── .gitignore             # Git ignore file
-├── README.md              # This file
-└── examples/              # Example scripts
-    ├── basic_order.py     # Basic order examples
-    ├── limit_order.py     # Limit order with SL
-    └── websocket_stream.py # WebSocket streaming example
-```
+├── Core_Modules/ # Core trading modules
+├── Application/ # Main applications
+│ ├── main_enhanced.py # Enhanced CLI trading terminal
+│ └── verify_setup.py # Setup verification script
+├── config.py # (Deprecated location, moved to Core_Modules)
+├── requirements.txt # Python dependencies
+├── .env.example # Environment variables template
+├── .gitignore # Git ignore file
+├── README.md # This file
+├── launcher.py # Main Entry point
+└── Examples/ # Example scripts
+├── basic_order.py # Basic order examples
+├── limit_order.py # Limit order with SL
+└── websocket_stream.py # WebSocket streaming example
 
 ## Setup
 
@@ -87,7 +86,13 @@ This will:
 Run the main application for an interactive menu:
 
 ```bash
-python main.py
+./run.sh
+```
+
+Or manually:
+
+```bash
+python Application/main_enhanced.py
 ```
 
 Features:

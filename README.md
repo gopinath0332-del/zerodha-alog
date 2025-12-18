@@ -1,22 +1,21 @@
 # Zerodha Kite Connect Trading Bot
 
-Automated trading system for Zerodha using the KiteConnect API with advanced RSI monitoring, Donchian Channel strategy, email and Discord alerts, and a modern GUI.
+Automated trading system for Zerodha using the KiteConnect API with advanced RSI monitoring, Donchian Channel strategy, and email/Discord alerts, designed for headless terminal reliability.
 
 ## ✨ Latest Features
 
 - **Email & Discord Alerts**: Unified notification system supporting both email (SMTP) and Discord webhooks. Configure via `.env` file.
-- **Heikin Ashi Candle Support**: Both NatgasMini RSI and GOLDPETAL Donchian monitors now support Heikin Ashi candles. Users can select candle type via radio buttons (default: Heikin Ashi) in the GUI.
-- **Commodity Strategy Tabs**: Dedicated tabs for NatgasMini (RSI) and GOLDPETAL (Donchian) with auto-loaded MCX futures.
-- **Simplified UI**: No exchange dropdowns; all commodity contracts auto-populate.
-- **Float Log Formatting**: All float values in logs are normalized (no np.float64).
-- **Pre-commit Hooks Removed**: No pre-commit logic in repo.
+- **Heikin Ashi Candle Support**: Both NatgasMini RSI and GOLDPETAL Donchian monitors now support Heikin Ashi candles. Users can select candle type in the CLI menus.
+- **Commodity Strategy Monitoring**: Dedicated monitors for NatgasMini (RSI) and GOLDPETAL (Donchian).
+- **Headless Optimized**: Zero GUI dependencies, perfect for Raspberry Pi and server deployments.
+- **Float Log Formatting**: All float values in logs are normalized.
 - **Improved Logging**: Value color set to white, spacing added.
 
 ## How to Use Heikin Ashi Feature
 
-- In the NatgasMini and GOLDPETAL tabs, select your contract and interval.
-- Choose candle type using the radio button (Heikin Ashi or Normal).
-- Launch the monitor; RSI or Donchian logic will use the selected candle type.
+- In the Strategy Monitors menu, select your strategy and contract.
+- Choose candle type when prompted (Heikin Ashi or Normal).
+- Launch the monitor.
 
 ## 📑 Table of Contents
 
@@ -63,13 +62,13 @@ Automated trading system for Zerodha using the KiteConnect API with advanced RSI
 - Example scripts: basic orders, limit orders, websocket streaming
 - Utility functions: position sizing, portfolio analysis, CSV export
 - Comprehensive documentation
-- Test scripts for setup and GUI
+- Test scripts for setup
 
 ## 📁 Project Structure
 
 ```
 my-trade-py/
-├── Core_Modules/          # Core trading modules (active)
+├── Core_Modules/          # Core trading modules
 │   ├── __init__.py
 │   ├── config.py          # Configuration settings
 │   ├── auth.py            # Authentication & session management
@@ -78,17 +77,8 @@ my-trade-py/
 │   ├── strategies.py      # Trading strategies
 │   └── utils.py           # Utility functions
 │
-├── Core Modules/          # Legacy directory (deprecated, use Core_Modules)
-│   ├── auth.py            # Older versions of core files
-│   ├── trader.py
-│   ├── strategies.py
-│   ├── utils.py
-│   └── websocket_ticker.py
-│
 ├── Application/           # Main applications
 │   ├── __init__.py
-│   ├── gui_modern.py      # Modern DearPyGui trading terminal
-│   ├── gui_components/    # GUI components directory
 │   ├── main_enhanced.py   # Main CLI trading terminal
 │   ├── authenticate.py    # Authentication script
 │   └── verify_setup.py    # Environment verification script
@@ -99,34 +89,29 @@ my-trade-py/
 │   ├── limit_order.py     # Limit orders with stop loss
 │   └── websocket_stream.py # WebSocket streaming demo
 │
-├── Configuration/         # Config files (.env, requirements.txt)
+├── Configuration/         # Configuration files
 │   ├── requirements.txt   # Python dependencies
 │   ├── .env               # Environment variables (API keys)
 │   ├── .env.example       # Environment template
-│   └── instruments_nse.csv # Cached NSE instruments
-├── Documentation/         # Project documentation
+│   └── .gitignore         # Git ignore rules
+│
+├── Documentation/         # Documentation files
 │   ├── README.md          # Main documentation
 │   ├── QUICKSTART.md      # Quick start guide
 │   ├── PROJECT_OVERVIEW.md # Detailed project overview
-│   ├── GUI_GUIDE.md       # GUI application guide
+│   ├── ENHANCED_CLI_GUIDE.md # CLI Documentation
 │   ├── AUTO_AUTH_SETUP.md # Automated auth setup guide
-│   ├── DONCHIAN_STRATEGY_GUIDE.md # Donchian strategy documentation
-│   ├── STRUCTURE.md       # Detailed project structure
-│   ├── QUICK_REFERENCE.md # Quick command reference
-│   ├── BUGFIX_POSITIONS.md # Positions tab bug fix documentation
-│   ├── ENHANCEMENT_AUTO_REFRESH.md # Auto-refresh feature documentation
-│   └── GUI-Comparision.jpg # GUI comparison screenshot
-├── Examples/              # Usage examples
-│   ├── __init__.py
-│   ├── basic_order.py     # Basic trading examples
-│   ├── limit_order.py     # Limit orders with stop loss
-│   └── websocket_stream.py # WebSocket streaming demo
-├── logs/                  # Application logs
-├── launcher.py            # Main entry point script
-├── run.sh                 # Quick start script
-├── run_cli_enhanced.sh    # Launcher for enhanced CLI
-└── README.md              # This file - Project overview
+│   ├── ALERTS_QUICK_REFERENCE.md # Alerts reference
+│   ├── EMAIL_DISCORD_ALERTS_SETUP.md # Alerts setup guide
+│   └── DONCHIAN_STRATEGY_GUIDE.md # Donchian strategy documentation
+│
+├── README.md              # Root README (quick reference)
+├── launcher.py            # Main launcher script
+├── run.sh                 # Quick launch script
+└── launcher.py            # Main launcher script
 ```
+
+````
 
 ## 🚀 Quick Start
 
@@ -134,7 +119,7 @@ my-trade-py/
 
 ```bash
 pip3.9 install -r Configuration/requirements.txt
-```
+````
 
 2. Configure API credentials in `Configuration/.env`:
 
@@ -165,7 +150,8 @@ DISCORD_WEBHOOK_URL=your-discord-webhook-url
 Or launch the enhanced CLI (recommended for Raspberry Pi):
 
 ```bash
-./run_cli_enhanced.sh
+./run.sh
+# Select Option 3 (Start Enhanced Trading Application)
 # OR
 python3.9 Application/main_enhanced.py
 ```
@@ -186,7 +172,6 @@ python3.9 Application/main_enhanced.py
 - Quick Start: `Documentation/QUICKSTART.md`
 - Full Docs: `Documentation/README.md`
 - Project Overview: `Documentation/PROJECT_OVERVIEW.md`
-- GUI Guide: `Documentation/GUI_GUIDE.md`
 - Donchian Strategy: `Documentation/DONCHIAN_STRATEGY_GUIDE.md`
 - Project Structure: `Documentation/STRUCTURE.md`
 
@@ -239,9 +224,8 @@ python3.9 Application/main_enhanced.py
   - Documentation files relocated to `Documentation/`.
   - Pre-commit hooks removed.
 
-- **Auto-Refresh:**
-  - Automatic data refresh when switching GUI tabs.
-  - Day and net positions displayed across CLI and GUIs.
+- **Positions Fix**:
+  - Day and net positions displayed correctly in CLI.
 
 ## ⚠️ Important Notes
 
@@ -254,7 +238,7 @@ python3.9 Application/main_enhanced.py
 
 ## 🔧 Troubleshooting
 
-- GUI issues: check DearPyGui install, Python version, run `test_minimal.py`
+- Check `logs/` directory for detailed error messages
 - Strategy issues: verify symbol, authentication, Discord webhook
 - Futures not loading: check authentication, MCX contracts, network
 - Authentication problems: check `.env`, callback server port

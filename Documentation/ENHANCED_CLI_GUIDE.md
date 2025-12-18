@@ -2,13 +2,13 @@
 
 ## Overview
 
-The Enhanced CLI (`main_enhanced.py`) provides complete feature parity with the Modern GUI (`gui_modern.py`) in a terminal-based interface. Perfect for headless deployments, Raspberry Pi, and remote server environments.
+The Enhanced CLI (`main_enhanced.py`) provides a complete, feature-rich trading terminal interface. Perfect for headless deployments, Raspberry Pi, and remote server environments.
 
 ## Features
 
 ### ✅ Complete Feature Parity
 
-All features from the Modern GUI are available:
+All features are available in the terminal:
 
 - **Portfolio Management**: Summary, positions, holdings, margins
 - **Trading Operations**: Market, limit, and bracket orders
@@ -34,14 +34,16 @@ All features from the Modern GUI are available:
 pip3.9 install -r Configuration/requirements.txt
 
 # Make launcher executable
-chmod +x run_cli_enhanced.sh
+chmod +x run.sh
 ```
 
 ### Running
 
 ```bash
 # Using launcher script
-./run_cli_enhanced.sh
+# Using launcher script
+./run.sh
+# Select Option 3
 
 # Or directly
 python3.9 Application/main_enhanced.py
@@ -171,7 +173,8 @@ Perfect for 24/7 monitoring on Raspberry Pi:
 screen -S trading
 
 # Run the enhanced CLI
-./run_cli_enhanced.sh
+./run.sh
+# Select Option 3 (Start Enhanced CLI)
 
 # Start your monitors
 # Press Ctrl+A, then D to detach
@@ -187,7 +190,8 @@ screen -r trading
 tmux new -s trading
 
 # Run the enhanced CLI
-./run_cli_enhanced.sh
+./run.sh
+# Select Option 3 (Start Enhanced CLI)
 
 # Detach: Ctrl+B, then D
 # Reattach: tmux attach -t trading
@@ -253,27 +257,13 @@ pip3.9 install tabulate
 - Press Ctrl+C twice
 - Or use menu option 10 (Exit)
 
-## Comparison: CLI vs GUI
-
-| Feature              | Enhanced CLI | Modern GUI        |
-| -------------------- | ------------ | ----------------- |
-| Portfolio Management | ✅           | ✅                |
-| Trading Operations   | ✅           | ✅                |
-| Strategy Monitors    | ✅           | ✅                |
-| Notifications        | ✅           | ✅                |
-| Resource Usage       | Low          | Medium-High       |
-| Headless Support     | ✅           | ❌                |
-| Remote Access        | Easy (SSH)   | Complex (VNC/X11) |
-| Raspberry Pi         | Perfect      | Requires display  |
-| Visual Charts        | ❌           | ✅                |
-| Mouse Support        | ❌           | ✅                |
-
 ## Examples
 
 ### Quick Portfolio Check
 
 ```bash
-./run_cli_enhanced.sh
+./run.sh
+# Select Option 3 (Enhanced CLI)
 # Select: 1 (Portfolio Summary)
 # View metrics, press Enter
 # Select: 10 (Exit)
@@ -282,7 +272,8 @@ pip3.9 install tabulate
 ### Start RSI Monitor
 
 ```bash
-./run_cli_enhanced.sh
+./run.sh
+# Select Option 3 (Enhanced CLI)
 # Select: 7 (Strategy Monitors)
 # Select: 1 (NatgasMini RSI)
 # Choose contract: 1
@@ -295,7 +286,8 @@ pip3.9 install tabulate
 ### Export All Data
 
 ```bash
-./run_cli_enhanced.sh
+./run.sh
+# Select Option 3 (Start Enhanced CLI)
 # Select: 8 (Tools)
 # Select: 2 (Export Portfolio)
 # Select: 3 (Export Positions)

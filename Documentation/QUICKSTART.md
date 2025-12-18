@@ -26,7 +26,7 @@ REDIRECT_URL=http://127.0.0.1:5000/callback
 Run the authentication script:
 
 ```bash
-python auth.py
+python Application/authenticate.py
 ```
 
 This will:
@@ -43,7 +43,13 @@ This will:
 Run the interactive application:
 
 ```bash
-python main.py
+./run.sh
+```
+
+Or manually:
+
+```bash
+python Application/main_enhanced.py
 ```
 
 Choose option 1 to view market data for some stocks (e.g., NSE:INFY, NSE:TCS)
