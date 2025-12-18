@@ -23,10 +23,8 @@ Automated trading system for Zerodha using the KiteConnect API with advanced RSI
 - Key Features
 - Project Structure
 - Quick Start
-- Modern Trading Terminal (DearPyGui)
 - Authentication
 - Strategy Usage
-- Classic GUI (tkinter)
 - Documentation
 - Recent Updates
 - Important Notes
@@ -54,12 +52,9 @@ Automated trading system for Zerodha using the KiteConnect API with advanced RSI
 
 ### User Interfaces
 
-- Modern GUI: DearPyGui-based trading terminal (recommended)
-- Dark theme, multiple tabs, dashboard, positions, orders, strategies
-- **Enhanced CLI: Feature-complete terminal interface (NEW!)**
-- All GUI features in CLI: portfolio, trading, strategy monitors, notifications
+- **Enhanced CLI: Feature-complete terminal interface**
+- All trading features in CLI: portfolio, trading, strategy monitors, notifications
 - Perfect for headless servers and Raspberry Pi deployments
-- Classic GUI: tkinter-based alternative
 - Simple CLI: Basic interactive menu
 - Launcher script for unified access
 
@@ -93,11 +88,10 @@ my-trade-py/
 ├── Application/           # Main applications
 │   ├── __init__.py
 │   ├── gui_modern.py      # Modern DearPyGui trading terminal
-│   ├── gui_components/    # GUI components directory (reserved)
-│   ├── gui.py             # Legacy tkinter GUI
-│   ├── main.py            # Interactive CLI application
+│   ├── gui_components/    # GUI components directory
+│   ├── main_enhanced.py   # Main CLI trading terminal
 │   ├── authenticate.py    # Authentication script
-│   └── verify_setup.py    # Setup verification script
+│   └── verify_setup.py    # Environment verification script
 │
 ├── Examples/              # Example scripts
 │   ├── __init__.py
@@ -105,13 +99,12 @@ my-trade-py/
 │   ├── limit_order.py     # Limit orders with stop loss
 │   └── websocket_stream.py # WebSocket streaming demo
 │
-├── Configuration/         # Configuration files
+├── Configuration/         # Config files (.env, requirements.txt)
 │   ├── requirements.txt   # Python dependencies
 │   ├── .env               # Environment variables (API keys)
 │   ├── .env.example       # Environment template
 │   └── instruments_nse.csv # Cached NSE instruments
-│
-├── Documentation/         # Documentation
+├── Documentation/         # Project documentation
 │   ├── README.md          # Main documentation
 │   ├── QUICKSTART.md      # Quick start guide
 │   ├── PROJECT_OVERVIEW.md # Detailed project overview
@@ -123,12 +116,15 @@ my-trade-py/
 │   ├── BUGFIX_POSITIONS.md # Positions tab bug fix documentation
 │   ├── ENHANCEMENT_AUTO_REFRESH.md # Auto-refresh feature documentation
 │   └── GUI-Comparision.jpg # GUI comparison screenshot
-│
-├── launcher.py            # CLI launcher script
-├── run.sh                 # Main launcher wrapper
-├── run_gui_modern.sh      # Modern GUI launcher (DearPyGui)
-├── run_gui.sh             # Legacy GUI launcher (tkinter)
-├── test_minimal.py        # DearPyGui minimal test script
+├── Examples/              # Usage examples
+│   ├── __init__.py
+│   ├── basic_order.py     # Basic trading examples
+│   ├── limit_order.py     # Limit orders with stop loss
+│   └── websocket_stream.py # WebSocket streaming demo
+├── logs/                  # Application logs
+├── launcher.py            # Main entry point script
+├── run.sh                 # Quick start script
+├── run_cli_enhanced.sh    # Launcher for enhanced CLI
 └── README.md              # This file - Project overview
 ```
 
@@ -166,14 +162,6 @@ DISCORD_WEBHOOK_URL=your-discord-webhook-url
 ./run.sh
 ```
 
-Or launch the modern GUI directly:
-
-```bash
-./run_gui_modern.sh
-# OR
-python3.9 Application/gui_modern.py
-```
-
 Or launch the enhanced CLI (recommended for Raspberry Pi):
 
 ```bash
@@ -182,39 +170,9 @@ Or launch the enhanced CLI (recommended for Raspberry Pi):
 python3.9 Application/main_enhanced.py
 ```
 
-## 🖥️ Modern Trading Terminal (DearPyGui)
-
-- Modern dark theme, GPU-accelerated
-- Real-time charts, live data tables
-- Automated authentication
-- Portfolio dashboard, trading tools, CSV export
-- **Heikin Ashi Candle Support** for both RSI and Donchian strategies
-
-## Commodity Strategy Monitors
-
-### NatgasMini Tab - RSI Strategy
-
-- Live RSI calculation (period=14)
-- Email and Discord webhook alerts
-- 1-hour analysis intervals
-- Threshold alerts (>70, <30)
-- Sound alerts
-- Auto-loaded MCX futures
-- **Candle Type Selection**: Heikin Ashi or Normal (radio button)
-
-### GOLDPETAL Tab - Donchian Channel Strategy
-
-- Donchian Channel analysis (Upper: 20, Lower: 10)
-- Email and Discord alerts for breakouts/breakdowns
-- 1-hour intervals
-- Bullish/bearish alerts
-- Sound alerts
-- Auto-loaded MCX futures
-- **Candle Type Selection**: Heikin Ashi or Normal (radio button)
-
 ## 🔐 Authentication
 
-- Built-in OAuth authentication in GUI
+- Built-in OAuth authentication in CLI
 - Access token saved to `.env` (valid for 24 hours)
 - Manual authentication: `python3.9 Application/authenticate.py`
 
@@ -222,14 +180,6 @@ python3.9 Application/main_enhanced.py
 
 - NatgasMini RSI: Select future, launch monitor, receive email and Discord alerts
 - GOLDPETAL Donchian: Select future, launch monitor, receive email and Discord alerts
-
-## 🖼️ Classic GUI (tkinter)
-
-- Portfolio summary, positions, holdings
-- Interactive order placement
-- Market data viewer
-- Position sizing calculator
-- CSV export
 
 ## 📚 Documentation
 

@@ -5,7 +5,7 @@ Provides easy access to main applications
 """
 import sys
 import os
-import subprocess
+
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -16,11 +16,11 @@ PYTHON_EXE = 'python3.9'
 def show_menu():
     """Display launcher menu"""
     print("\n" + "="*60)
-    print("  ZERODHA KITE TRADING BOT - LAUNCHER")
+    print("  ZERODHA KITE TRADING BOT - TERMINAL LAUNCHER")
     print("="*60)
     print("\n1. Verify Setup")
     print("2. Authenticate (First time / Daily login)")
-    print("3. Start Trading Application")
+    print("3. Start Trading Application (Enhanced CLI)")
     print("4. Run Basic Order Example")
     print("5. Run Limit Order Example")
     print("6. Run WebSocket Stream Example")
@@ -40,8 +40,8 @@ def main():
             print("\n--- Starting Authentication ---\n")
             os.system(f'{PYTHON_EXE} Application/authenticate.py')
         elif choice == '3':
-            print("\n--- Starting Trading Application ---\n")
-            os.system(f'{PYTHON_EXE} Application/main.py')
+            print("\n--- Starting Enhanced Trading Application ---\n")
+            os.system(f'{PYTHON_EXE} Application/main_enhanced.py')
         elif choice == '4':
             print("\n--- Running Basic Order Example ---\n")
             os.system(f'{PYTHON_EXE} Examples/basic_order.py')
