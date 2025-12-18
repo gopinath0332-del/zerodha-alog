@@ -88,11 +88,10 @@ my-trade-py/
 ├── Application/           # Main applications
 │   ├── __init__.py
 │   ├── gui_modern.py      # Modern DearPyGui trading terminal
-│   ├── gui_components/    # GUI components directory (reserved)
-│   ├── gui.py             # Legacy tkinter GUI
-│   ├── main.py            # Interactive CLI application
+│   ├── gui_components/    # GUI components directory
+│   ├── main_enhanced.py   # Main CLI trading terminal
 │   ├── authenticate.py    # Authentication script
-│   └── verify_setup.py    # Setup verification script
+│   └── verify_setup.py    # Environment verification script
 │
 ├── Examples/              # Example scripts
 │   ├── __init__.py
